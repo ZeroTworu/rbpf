@@ -25,10 +25,8 @@ async fn main() -> anyhow::Result<()> {
     if ret != 0 {
         debug!("remove limit on locked memory failed, ret is: {}", ret);
     }
-
     init_bpf().await?;
     println!("Exiting...");
-
     Ok(())
 }
 
@@ -37,7 +35,7 @@ async fn init_bpf() -> anyhow::Result<()> {
 
     let opt = Opt::parse();
 
-    let mut ebpf = aya::Ebpf::load(aya::include_bytes_aligned!(concat!(
+    let mut ebpf = Ebpf::load(aya::include_bytes_aligned!(concat!(
         env!("OUT_DIR"),
         "/rbpf"
     )))?;
@@ -61,7 +59,6 @@ async fn init_bpf() -> anyhow::Result<()> {
     let ctrl_c = signal::ctrl_c();
     println!("Waiting for Ctrl-C...");
     ctrl_c.await?;
-
     Ok(())
 }
 
