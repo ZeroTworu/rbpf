@@ -1,0 +1,16 @@
+[package]
+name = "rbpf-ebpf"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+aya-ebpf = { workspace = true }
+aya-log-ebpf = { workspace = true }
+network-types = "0.0.7"
+
+[build-dependencies]
+which = { workspace = true }
+
+[[bin]]
+name = "rbpf"
+path = "src/main.rs"
