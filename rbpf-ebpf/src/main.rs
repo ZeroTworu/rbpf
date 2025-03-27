@@ -3,19 +3,13 @@
 
 use aya_ebpf::{
     bindings::{TC_ACT_PIPE, TC_ACT_SHOT},
-    macros::{classifier, map},
-    maps::HashMap,
+    macros::classifier,
     programs::TcContext,
 };
 use aya_log_ebpf::{info, warn};
 use network_types::eth::{EthHdr, EtherType};
-use rbpf_ebpf::{parse, ParseResult};
-
-#[map]
-static IN_BLOCKLIST: HashMap<u32, u32> = HashMap::with_max_entries(1024, 0);
-
-#[map]
-static OUT_BLOCKLIST: HashMap<u32, u32> = HashMap::with_max_entries(1024, 0);
+use rbpf_ebpf::parse;
+use rbpf_ebpf::filter::{is_in_block, is_out_block};
 
 #[classifier]
 pub fn tc_egress(ctx: TcContext) -> i32 {
@@ -83,14 +77,6 @@ fn try_tc_egress(ctx: TcContext) -> Result<i32, ()> {
     );
 
     Ok(TC_ACT_PIPE)
-}
-
-fn is_in_block(pac: &ParseResult) -> bool {
-    unsafe { IN_BLOCKLIST.get(&pac.source_addr).is_some() }
-}
-
-fn is_out_block(pac: &ParseResult) -> bool {
-    unsafe { OUT_BLOCKLIST.get(&pac.destination_addr).is_some() }
 }
 
 #[cfg(not(test))]
