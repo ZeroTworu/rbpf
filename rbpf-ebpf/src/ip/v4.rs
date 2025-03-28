@@ -1,4 +1,4 @@
-use crate::filter::v4::{is_in_v4_block, is_out_v4_block};
+use crate::filter::v4::{is_in_v4_block, is_out_v4_block, is_out_v4_block_ip_port, is_in_v4_block_ip_port};
 use crate::ip::{ptr_at, TcContext};
 use aya_ebpf::bindings::{TC_ACT_PIPE, TC_ACT_SHOT};
 use aya_log_ebpf::{debug, warn};
@@ -58,6 +58,14 @@ pub fn handle_ingress_v4(ctx: &TcContext) -> Result<i32, ()> {
         return Ok(TC_ACT_SHOT);
     }
 
+    if is_in_v4_block_ip_port(&ret) {
+        warn!(
+            ctx,
+            "[BLOCK] {:i}:{} as INPUT RULE (IP:PORT)", ret.source_addr, ret.source_port
+        );
+        return Ok(TC_ACT_SHOT);
+    }
+
     debug!(
         ctx,
         "INPUT: {:i}:{} -> {:i}:{}",
@@ -80,6 +88,14 @@ pub fn handle_egress_v4(ctx: &TcContext) -> Result<i32, ()> {
         warn!(
             ctx,
             "[BLOCK] {:i}:{} as OUTPUT RULE", ret.destination_addr, ret.destination_port
+        );
+        return Ok(TC_ACT_SHOT);
+    }
+
+    if is_out_v4_block_ip_port(&ret) {
+        warn!(
+            ctx,
+            "[BLOCK] {:i}:{} as OUTPUT RULE (IP:PORT)", ret.destination_addr, ret.destination_port
         );
         return Ok(TC_ACT_SHOT);
     }

@@ -56,8 +56,8 @@ async fn init_bpf() -> anyhow::Result<()> {
 async fn read_settings(ebpf: &mut Ebpf, path: String) -> anyhow::Result<()> {
     let yaml = read_to_string(path).await?;
     let settings = YamlLoader::load_from_str(&yaml)?;
-    let _ = load_v4(ebpf, &settings[0]).await;
-    let _ = load_v6(ebpf, &settings[0]).await;
+    let _ = load_v4(ebpf, &settings[0])?;
+    let _ = load_v6(ebpf, &settings[0])?;
 
     // TODO: Придумать как это красиво убрать в отдельный лоадер
     let interfaces = &settings[0]["interfaces"];

@@ -4,13 +4,13 @@ use aya_ebpf::{macros::map, maps::HashMap};
 const MAX_ENTRIES: u32 = 65535;
 
 #[map]
-static IN_BLOCKLIST_V6_ADDRESSES: HashMap<u128, u128> = HashMap::with_max_entries(MAX_ENTRIES, 0);
+static IN_BLOCKLIST_V6_ADDRESSES: HashMap<u128, u128> = HashMap::with_max_entries(MAX_ENTRIES * 2, 0);
 
 #[map]
 static IN_BLOCKLIST_V6_PORTS: HashMap<u16, u16> = HashMap::with_max_entries(MAX_ENTRIES, 0);
 
 #[map]
-static OUT_BLOCKLIST_V6_ADDRESSES: HashMap<u128, u128> = HashMap::with_max_entries(MAX_ENTRIES, 0);
+static OUT_BLOCKLIST_V6_ADDRESSES: HashMap<u128, u128> = HashMap::with_max_entries(MAX_ENTRIES * 2, 0);
 
 #[map]
 static OUT_BLOCKLIST_V6_PORTS: HashMap<u16, u16> = HashMap::with_max_entries(MAX_ENTRIES, 0);

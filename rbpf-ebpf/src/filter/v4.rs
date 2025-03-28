@@ -29,6 +29,15 @@ pub fn is_in_v4_block(pac: &ParseResultV4) -> bool {
     res
 }
 
+#[inline(always)]
+pub fn is_in_v4_block_ip_port(pac: &ParseResultV4) -> bool {
+    let port: u16 = match unsafe { IN_BLOCKLIST_V4_IP_PORT.get(&pac.source_addr) } {
+        Some(port) => *port,
+        None => return false,
+    };
+    pac.source_port == port
+}
+
 
 #[inline(always)]
 pub fn is_out_v4_block(pac: &ParseResultV4) -> bool {
@@ -38,4 +47,13 @@ pub fn is_out_v4_block(pac: &ParseResultV4) -> bool {
             .is_some()
     } || unsafe { OUT_BLOCKLIST_V4_PORTS.get(&pac.destination_port).is_some() };
     res
+}
+
+#[inline(always)]
+pub fn is_out_v4_block_ip_port(pac: &ParseResultV4) -> bool {
+    let port: u16 = match unsafe { OUT_BLOCKLIST_V4_IP_PORT.get(&pac.destination_addr) } {
+        Some(port) => *port,
+        None => return false,
+    };
+    pac.destination_port == port
 }

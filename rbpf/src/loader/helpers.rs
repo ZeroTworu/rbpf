@@ -38,12 +38,16 @@ pub fn v4_addresses_maker(
         // Но т.к. Предпологается, что настройки заполняет квалифицированный человек
         // Который не будет сознательно вредить - делаем так.
         Some(addr) => {
+            //IP:PORT - прекращаем обработку
+            if addr.contains(":") {
+                return Ok(())
+            }
             // Обрабатываем подсеть
             // Запись вида: 127.0.0.0/24
             if addr.contains("/") {
                 let net: Ipv4Net = addr.parse()?;
                 for addr in net.hosts() {
-                    blocklist.insert(&addr.into(), 0, 0)?;
+                    blocklist.insert(&addr.to_bits(), 0, 0)?;
                 }
                 return Ok(());
             }
@@ -57,13 +61,35 @@ pub fn v4_addresses_maker(
     }
 }
 
+pub fn v4_ip_port_maker(
+    blocklist: &mut HashMap<&mut MapData, u32, u16>,
+    address: &Yaml,
+) -> anyhow::Result<()> {
+    match address.as_str() {
+        Some(addr) => {
+            // Обрабатываем ip:port
+            // Запись вида: 127.0.0.0:80
+            if addr.contains(":") {
+                let parts = addr.split(":").collect::<Vec<&str>>();
+
+                let addr: Ipv4Addr = parts[0].parse()?;
+                let port: u16 = parts[1].parse()?;
+
+                blocklist.insert(&addr.to_bits(), port, 0)?;
+            }
+            Ok(())
+        }
+        None => Ok(()),
+    }
+}
+
 pub fn v6_addresses_maker(
     blocklist: &mut HashMap<&mut MapData, u128, u128>,
     address: &Yaml,
 ) -> anyhow::Result<()> {
     match address.as_str() {
-        // Понятно, что не размно пологаться просто на наличие "/" или ":" в строке.
-        // Но т.к. Предпологается, что настройки заполняет квалифицированный человек
+        // Понятно, что не разумно пологаться просто на наличие "/" или ":" в строке.
+        // Но т.к. Предполагается, что настройки заполняет квалифицированный человек
         // Который не будет сознательно вредить - делаем так.
         Some(addr) => {
             if addr.contains("/") {
