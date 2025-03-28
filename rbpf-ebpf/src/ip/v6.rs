@@ -1,6 +1,7 @@
 use crate::filter::v6::{is_in_v6_block, is_out_v6_block};
-use crate::ip::{ptr_at, TcContext};
-use aya_ebpf::bindings::{TC_ACT_PIPE, TC_ACT_SHOT};
+use crate::ip::{ptr_at, ptr_at_xdp, TcContext};
+use aya_ebpf::bindings::{xdp_action, TC_ACT_PIPE, TC_ACT_SHOT};
+use aya_ebpf::programs::XdpContext;
 use aya_log_ebpf::{debug, warn};
 use core::net::Ipv6Addr;
 use network_types::eth::EthHdr;
@@ -47,10 +48,39 @@ pub fn parse_v6(ctx: &TcContext) -> Result<ParseResultV6, ()> {
     })
 }
 
-pub fn handle_ingress_v6(ctx: &TcContext) -> Result<i32, ()> {
-    let ret = match parse_v6(&ctx) {
+pub fn parse_v6_xdp(ctx: &XdpContext) -> Result<ParseResultV6, ()> {
+    let ipv6hdr: Ipv6Hdr = unsafe { *ptr_at_xdp(&ctx, 0)? };
+
+    let destination_addr = Ipv6Addr::from(unsafe { ipv6hdr.dst_addr.in6_u.u6_addr8 });
+
+    let source_addr = Ipv6Addr::from(unsafe { ipv6hdr.src_addr.in6_u.u6_addr8 });
+
+    let proto = ipv6hdr.next_hdr;
+
+    let (source_port, destination_port) = match proto {
+        IpProto::Tcp => {
+            let tcphdr: TcpHdr = unsafe { *ptr_at_xdp(ctx, EthHdr::LEN + Ipv6Hdr::LEN)? };
+            (u16::from_be(tcphdr.source), u16::from_be(tcphdr.dest))
+        }
+        IpProto::Udp => {
+            let udphdr: UdpHdr = unsafe { *ptr_at_xdp(ctx, EthHdr::LEN + Ipv6Hdr::LEN)? };
+            (u16::from_be(udphdr.source), u16::from_be(udphdr.dest))
+        }
+        _ => return Err(()),
+    };
+    Ok(ParseResultV6 {
+        source_port,
+        destination_port,
+        source_addr,
+        destination_addr,
+        proto,
+    })
+}
+
+pub fn handle_ingress_v6(ctx: &XdpContext) -> Result<u32, ()> {
+    let ret = match parse_v6_xdp(&ctx) {
         Ok(ret) => ret,
-        Err(_) => return Ok(TC_ACT_PIPE),
+        Err(_) => return Ok(xdp_action::XDP_PASS),
     };
 
     if is_in_v6_block(&ret) {
@@ -58,7 +88,7 @@ pub fn handle_ingress_v6(ctx: &TcContext) -> Result<i32, ()> {
             ctx,
             "[BLOCK] {:i}:{} as INPUT RULE", ret.source_addr, ret.source_port
         );
-        return Ok(TC_ACT_SHOT);
+        return Ok(xdp_action::XDP_DROP);
     }
 
     debug!(
@@ -70,7 +100,7 @@ pub fn handle_ingress_v6(ctx: &TcContext) -> Result<i32, ()> {
         ret.destination_port
     );
 
-    Ok(TC_ACT_PIPE)
+    Ok(xdp_action::XDP_PASS)
 }
 
 pub fn handle_egress_v6(ctx: &TcContext) -> Result<i32, ()> {

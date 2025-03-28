@@ -40,7 +40,7 @@ pub fn v4_addresses_maker(
         Some(addr) => {
             //IP:PORT - прекращаем обработку
             if addr.contains(":") {
-                return Ok(())
+                return Ok(());
             }
             // Обрабатываем подсеть
             // Запись вида: 127.0.0.0/24

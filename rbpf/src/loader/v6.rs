@@ -15,7 +15,7 @@ const IN_BLOCKLIST_V6_ADDRESSES: &str = "IN_BLOCKLIST_V6_ADDRESSES";
 //
 // const OUT_BLOCKLIST_V6_IP_PORT: &str = "OUT_BLOCKLIST_V6_IP_PORT";
 
-fn load_in_addresses(ebpf: &mut Ebpf, cfg: &Yaml) -> anyhow::Result<()>     {
+fn load_in_addresses(ebpf: &mut Ebpf, cfg: &Yaml) -> anyhow::Result<()> {
     let mut in_blocklist: HashMap<_, u128, u128> =
         HashMap::try_from(ebpf.map_mut(IN_BLOCKLIST_V6_ADDRESSES).unwrap())?;
 
@@ -30,7 +30,7 @@ fn load_in_addresses(ebpf: &mut Ebpf, cfg: &Yaml) -> anyhow::Result<()>     {
     Ok(())
 }
 
-fn load_in_ports(ebpf: &mut Ebpf, cfg: &Yaml) -> anyhow::Result<()>  {
+fn load_in_ports(ebpf: &mut Ebpf, cfg: &Yaml) -> anyhow::Result<()> {
     let mut in_blocklist: HashMap<_, u16, u16> =
         HashMap::try_from(ebpf.map_mut(IN_BLOCKLIST_V6_PORTS).unwrap())?;
 
@@ -45,7 +45,7 @@ fn load_in_ports(ebpf: &mut Ebpf, cfg: &Yaml) -> anyhow::Result<()>  {
     Ok(())
 }
 
-fn load_out_addresses(ebpf: &mut Ebpf, cfg: &Yaml) -> anyhow::Result<()>  {
+fn load_out_addresses(ebpf: &mut Ebpf, cfg: &Yaml) -> anyhow::Result<()> {
     let mut out_blocklist: HashMap<_, u128, u128> =
         HashMap::try_from(ebpf.map_mut(OUT_BLOCKLIST_V6_ADDRESSES).unwrap())?;
 
@@ -60,7 +60,7 @@ fn load_out_addresses(ebpf: &mut Ebpf, cfg: &Yaml) -> anyhow::Result<()>  {
     Ok(())
 }
 
-fn load_out_ports(ebpf: &mut Ebpf, cfg: &Yaml) -> anyhow::Result<()>  {
+fn load_out_ports(ebpf: &mut Ebpf, cfg: &Yaml) -> anyhow::Result<()> {
     let mut out_blocklist: HashMap<_, u16, u16> =
         HashMap::try_from(ebpf.map_mut(OUT_BLOCKLIST_V6_PORTS).unwrap())?;
 

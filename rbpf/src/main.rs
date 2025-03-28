@@ -2,7 +2,7 @@ mod loader;
 
 use crate::loader::v4::load_v4;
 use crate::loader::v6::load_v6;
-use aya::programs::{SchedClassifier, TcAttachType};
+use aya::programs::{SchedClassifier, TcAttachType, Xdp, XdpFlags};
 use aya::Ebpf;
 use clap::Parser;
 use log::{debug, info, warn};
@@ -78,13 +78,12 @@ async fn read_settings(ebpf: &mut Ebpf, path: String) -> anyhow::Result<()> {
 
     match interfaces["input"].as_vec() {
         Some(interfaces) => {
-            let program_ingress: &mut SchedClassifier =
-                ebpf.program_mut("tc_ingress").unwrap().try_into()?;
+            let program_ingress: &mut Xdp = ebpf.program_mut("tc_ingress").unwrap().try_into()?;
             program_ingress.load()?;
 
             for iface in interfaces {
                 let iface = iface.as_str().unwrap();
-                program_ingress.attach(&iface, TcAttachType::Ingress)?;
+                program_ingress.attach(&iface, XdpFlags::default())?;
                 info!("Append input listener to: {}", iface);
             }
         }

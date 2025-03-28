@@ -26,8 +26,7 @@ fn load_in_addresses(ebpf: &mut Ebpf, cfg: &Yaml) -> anyhow::Result<()> {
                 v4_addresses_maker(&mut in_blocklist, addr)?
             }
         }
-        None => warn!("Addresses not found in {}", IN_BLOCKLIST_V4_ADDRESSES)
-
+        None => warn!("Addresses not found in {}", IN_BLOCKLIST_V4_ADDRESSES),
     }
     Ok(())
 }
@@ -42,8 +41,7 @@ fn load_in_ports(ebpf: &mut Ebpf, cfg: &Yaml) -> anyhow::Result<()> {
                 ports_maker(&mut in_blocklist, port)?
             }
         }
-        None => warn!("Ports not found in {}", IN_BLOCKLIST_V4_PORTS)
-
+        None => warn!("Ports not found in {}", IN_BLOCKLIST_V4_PORTS),
     }
     Ok(())
 }
@@ -58,13 +56,10 @@ fn load_in_ip_port(ebpf: &mut Ebpf, cfg: &Yaml) -> anyhow::Result<()> {
                 v4_ip_port_maker(&mut in_blocklist, port)?
             }
         }
-        None => warn!("Ports not found in {}", IN_BLOCKLIST_V4_IP_PORT)
-
+        None => warn!("Ports not found in {}", IN_BLOCKLIST_V4_IP_PORT),
     }
     Ok(())
 }
-
-
 
 fn load_out_blocklist(ebpf: &mut Ebpf, cfg: &Yaml) -> anyhow::Result<()> {
     let mut out_blocklist: HashMap<_, u32, u32> =
@@ -76,7 +71,7 @@ fn load_out_blocklist(ebpf: &mut Ebpf, cfg: &Yaml) -> anyhow::Result<()> {
                 v4_addresses_maker(&mut out_blocklist, addr)?
             }
         }
-        None => warn!("Addresses not found in {}", OUT_BLOCKLIST_V4_ADDRESSES)
+        None => warn!("Addresses not found in {}", OUT_BLOCKLIST_V4_ADDRESSES),
     }
     Ok(())
 }
@@ -91,8 +86,7 @@ fn load_out_ports(ebpf: &mut Ebpf, cfg: &Yaml) -> anyhow::Result<()> {
                 ports_maker(&mut out_blocklist, port)?
             }
         }
-        None => warn!("Ports not found in {}", OUT_BLOCKLIST_V4_PORTS)
-
+        None => warn!("Ports not found in {}", OUT_BLOCKLIST_V4_PORTS),
     }
     Ok(())
 }
@@ -107,8 +101,7 @@ fn load_out_ip_port(ebpf: &mut Ebpf, cfg: &Yaml) -> anyhow::Result<()> {
                 v4_ip_port_maker(&mut in_blocklist, port)?
             }
         }
-        None => warn!("Ports not found in {}", OUT_BLOCKLIST_V4_IP_PORT)
-
+        None => warn!("Ports not found in {}", OUT_BLOCKLIST_V4_IP_PORT),
     }
     Ok(())
 }

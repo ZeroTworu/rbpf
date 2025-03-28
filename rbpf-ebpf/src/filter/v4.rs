@@ -38,7 +38,6 @@ pub fn is_in_v4_block_ip_port(pac: &ParseResultV4) -> bool {
     pac.source_port == port
 }
 
-
 #[inline(always)]
 pub fn is_out_v4_block(pac: &ParseResultV4) -> bool {
     let res: bool = unsafe {
