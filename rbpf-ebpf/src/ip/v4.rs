@@ -1,8 +1,8 @@
-use crate::filter::{is_in_block, is_out_block};
+use crate::filter::v4::{is_in_v4_block, is_out_v4_block};
 use crate::ip::{ptr_at, TcContext};
 use aya_ebpf::bindings::{TC_ACT_PIPE, TC_ACT_SHOT};
 use aya_log_ebpf::{info, warn};
-use network_types::eth::{EthHdr, EtherType};
+use network_types::eth::EthHdr;
 use network_types::ip::{IpProto, Ipv4Hdr};
 use network_types::tcp::TcpHdr;
 use network_types::udp::UdpHdr;
@@ -49,8 +49,12 @@ pub fn handle_ingress_v4(ctx: &TcContext) -> Result<i32, ()> {
         Ok(ret) => ret,
         Err(_) => return Ok(TC_ACT_PIPE),
     };
-    if is_in_block(&ret) {
-        warn!(ctx, "V4 [BLOCK] {:i}:{} as INPUT RULE", ret.source_addr, ret.source_port);
+
+    if is_in_v4_block(&ret) {
+        warn!(
+            ctx,
+            "V4 [BLOCK] {:i}:{} as INPUT RULE", ret.source_addr, ret.source_port
+        );
         return Ok(TC_ACT_SHOT);
     }
 
@@ -67,19 +71,16 @@ pub fn handle_ingress_v4(ctx: &TcContext) -> Result<i32, ()> {
 }
 
 pub fn handle_egress_v4(ctx: &TcContext) -> Result<i32, ()> {
-    let ethhdr: EthHdr = ctx.load(0).map_err(|_| ())?;
-    match ethhdr.ether_type {
-        EtherType::Ipv4 => {}
-        _ => return Ok(TC_ACT_PIPE),
-    }
-
     let ret = match parse_v4(&ctx) {
         Ok(ret) => ret,
         Err(_) => return Ok(TC_ACT_PIPE),
     };
 
-    if is_out_block(&ret) {
-        warn!(ctx, "V4 [BLOCK] {:i}:{} as OUTPUT RULE", ret.destination_addr, ret.destination_port);
+    if is_out_v4_block(&ret) {
+        warn!(
+            ctx,
+            "V4 [BLOCK] {:i}:{} as OUTPUT RULE", ret.destination_addr, ret.destination_port
+        );
         return Ok(TC_ACT_SHOT);
     }
 

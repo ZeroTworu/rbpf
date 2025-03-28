@@ -1,6 +1,7 @@
+use crate::filter::v6::{is_in_v6_block, is_out_v6_block};
 use crate::ip::{ptr_at, TcContext};
-use aya_ebpf::bindings::{TC_ACT_PIPE};
-use aya_log_ebpf::{info};
+use aya_ebpf::bindings::{TC_ACT_PIPE, TC_ACT_SHOT};
+use aya_log_ebpf::{info, warn};
 use core::net::Ipv6Addr;
 use network_types::eth::EthHdr;
 use network_types::ip::{IpProto, Ipv6Hdr};
@@ -52,6 +53,14 @@ pub fn handle_ingress_v6(ctx: &TcContext) -> Result<i32, ()> {
         Err(_) => return Ok(TC_ACT_PIPE),
     };
 
+    if is_in_v6_block(&ret) {
+        warn!(
+            ctx,
+            "V6 [BLOCK] {:i}:{} as INPUT RULE", ret.source_addr, ret.source_port
+        );
+        return Ok(TC_ACT_SHOT);
+    }
+
     info!(
         ctx,
         "V6 INPUT: {:i}:{} -> {:i}:{}",
@@ -69,6 +78,14 @@ pub fn handle_egress_v6(ctx: &TcContext) -> Result<i32, ()> {
         Ok(ret) => ret,
         Err(_) => return Ok(TC_ACT_PIPE),
     };
+
+    if is_out_v6_block(&ret) {
+        warn!(
+            ctx,
+            "V6 [BLOCK] {:i}:{} as OUTPUT RULE", ret.source_addr, ret.source_port
+        );
+        return Ok(TC_ACT_SHOT);
+    }
 
     info!(
         ctx,

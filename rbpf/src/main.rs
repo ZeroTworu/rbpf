@@ -1,9 +1,11 @@
-use aya::maps::HashMap;
+mod loader;
+
+use crate::loader::v4::load_v4;
+use crate::loader::v6::load_v6;
 use aya::programs::{SchedClassifier, TcAttachType};
 use aya::Ebpf;
 use clap::Parser;
-use log::{debug, info, warn};
-use std::net::Ipv4Addr;
+use log::{debug, warn};
 use tokio::fs::read_to_string;
 use tokio::signal;
 use yaml_rust2::YamlLoader;
@@ -65,50 +67,8 @@ async fn init_bpf() -> anyhow::Result<()> {
 async fn read_settings(ebpf: &mut Ebpf, path: String) -> anyhow::Result<String> {
     let yaml = read_to_string(path).await?;
     let settings = YamlLoader::load_from_str(&yaml)?;
-
-    {
-        let mut in_blocklist: HashMap<_, u32, u32> =
-            HashMap::try_from(ebpf.map_mut("IN_BLOCKLIST_ADDRESSES").unwrap())?;
-
-        for addr in settings[0]["input"]["addresses"].as_vec().unwrap().iter() {
-            let v4: Ipv4Addr = String::from(addr.as_str().unwrap()).parse()?;
-            info!("address: {} added to IN BLOCKLIST", v4);
-            in_blocklist.insert(&v4.into(), 0, 0)?;
-        }
-    }
-
-    {
-        let mut in_blocklist: HashMap<_, u16, u16> =
-            HashMap::try_from(ebpf.map_mut("IN_BLOCKLIST_PORTS").unwrap())?;
-
-        for port in settings[0]["input"]["ports"].as_vec().unwrap().iter() {
-            let port: u16 = String::from(port.as_str().unwrap()).parse()?;
-            info!("port: {} added to IN BLOCKLIST", port);
-            in_blocklist.insert(&port, 0, 0)?;
-        }
-    }
-
-    {
-        let mut out_blocklist: HashMap<_, u32, u32> =
-            HashMap::try_from(ebpf.map_mut("OUT_BLOCKLIST_ADDRESSES").unwrap())?;
-
-        for addr in settings[0]["output"]["addresses"].as_vec().unwrap().iter() {
-            let v4: Ipv4Addr = String::from(addr.as_str().unwrap()).parse()?;
-            info!("address: {} added to OUT BLOCKLIST", v4);
-            out_blocklist.insert(&v4.into(), 0, 0)?;
-        }
-    }
-
-    {
-        let mut out_blocklist: HashMap<_, u16, u16> =
-            HashMap::try_from(ebpf.map_mut("OUT_BLOCKLIST_PORTS").unwrap())?;
-
-        for port in settings[0]["output"]["ports"].as_vec().unwrap().iter() {
-            let port: u16 = String::from(port.as_str().unwrap()).parse()?;
-            info!("port: {} added to OUT BLOCKLIST", port);
-            out_blocklist.insert(&port, 0, 0)?;
-        }
-    }
+    let _ = load_v4(ebpf, &settings[0]).await;
+    let _ = load_v6(ebpf, &settings[0]).await;
 
     Ok(settings[0]["interface"].as_str().unwrap().into())
 }

@@ -1,15 +1,27 @@
 interface: "enp5s0"
-input:
-  addresses:
-    - "217.65.3.21"
-    - "1.1.1.1"
-  ports:
-    - "5000"
-    - "5001"
-output:
-  addresses:
-    - "217.65.3.21"
-    - "1.1.1.1"
-  ports:
-    - "5000"
-    - "5001"
+v4:
+  input:
+    addresses:
+      - "217.65.3.21"
+      - "1.1.1.1"
+    ports:
+      - "5000"
+      - "5001"
+  output:
+    addresses:
+      - "217.65.3.21"
+      - "1.1.1.1"
+    ports:
+      - "5000"
+      - "5001"
+v6:
+  input:
+    addresses:
+      - "::1"
+    ports:
+      - "5000"
+  output:
+    addresses:
+      - "::1"
+    ports:
+      - "5000"
