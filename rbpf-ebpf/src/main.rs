@@ -6,10 +6,9 @@ use aya_ebpf::{
     macros::classifier,
     programs::TcContext,
 };
-use aya_log_ebpf::{info, warn};
 use network_types::eth::{EthHdr, EtherType};
-use rbpf_ebpf::parse;
-use rbpf_ebpf::filter::{is_in_block, is_out_block};
+use rbpf_ebpf::ip::v4::{handle_egress_v4, handle_ingress_v4};
+use rbpf_ebpf::ip::v6::{handle_egress_v6, handle_ingress_v6};
 
 #[classifier]
 pub fn tc_egress(ctx: TcContext) -> i32 {
@@ -23,60 +22,21 @@ pub fn tc_ingress(ctx: TcContext) -> i32 {
 
 fn try_tc_ingress(ctx: TcContext) -> Result<i32, ()> {
     let ethhdr: EthHdr = ctx.load(0).map_err(|_| ())?;
+
     match ethhdr.ether_type {
-        EtherType::Ipv4 => {}
-        _ => return Ok(TC_ACT_PIPE),
+        EtherType::Ipv4 => handle_ingress_v4(&ctx),
+        EtherType::Ipv6 => handle_ingress_v6(&ctx),
+        _ => Ok(TC_ACT_PIPE),
     }
-
-    let ret = match parse(&ctx) {
-        Ok(ret) => ret,
-        Err(_) => return Ok(TC_ACT_PIPE),
-    };
-
-    if is_in_block(&ret) {
-        warn!(&ctx, "[BLOCK] {:i} as INPUT RULE", ret.source_addr);
-        return Ok(TC_ACT_SHOT);
-    }
-
-    info!(
-        &ctx,
-        "INPUT: {:i}:{} -> {:i}:{}",
-        ret.source_addr,
-        ret.source_port,
-        ret.destination_addr,
-        ret.destination_port
-    );
-
-    Ok(TC_ACT_PIPE)
 }
 
 fn try_tc_egress(ctx: TcContext) -> Result<i32, ()> {
     let ethhdr: EthHdr = ctx.load(0).map_err(|_| ())?;
     match ethhdr.ether_type {
-        EtherType::Ipv4 => {}
-        _ => return Ok(TC_ACT_PIPE),
+        EtherType::Ipv4 => handle_egress_v4(&ctx),
+        EtherType::Ipv6 => handle_egress_v6(&ctx),
+        _ => Ok(TC_ACT_PIPE),
     }
-
-    let ret = match parse(&ctx) {
-        Ok(ret) => ret,
-        Err(_) => return Ok(TC_ACT_PIPE),
-    };
-
-    if is_out_block(&ret) {
-        warn!(&ctx, "[BLOCK] {:i} as OUTPUT RULE", ret.destination_addr);
-        return Ok(TC_ACT_SHOT);
-    }
-
-    info!(
-        &ctx,
-        "OUTPUT: {:i}:{} -> {:i}:{}",
-        ret.source_addr,
-        ret.source_port,
-        ret.destination_addr,
-        ret.destination_port
-    );
-
-    Ok(TC_ACT_PIPE)
 }
 
 #[cfg(not(test))]
