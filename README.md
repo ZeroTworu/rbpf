@@ -1,33 +1,35 @@
-# rbpf
+### Rust eBPF Firewall (POC)
 
-## Prerequisites
+#### Описание
 
-1. stable rust toolchains: `rustup toolchain install stable`
-1. nightly rust toolchains: `rustup toolchain install nightly --component rust-src`
-1. (if cross-compiling) rustup target: `rustup target add ${ARCH}-unknown-linux-musl`
-1. (if cross-compiling) LLVM: (e.g.) `brew install llvm` (on macOS)
-1. (if cross-compiling) C toolchain: (e.g.) [`brew install filosottile/musl-cross/musl-cross`](https://github.com/FiloSottile/homebrew-musl-cross) (on macOS)
-1. bpf-linker: `cargo install bpf-linker` (`--no-default-features` on macOS)
+Демонстрация возможности написания eBPF Firewall на Rust, оно же Proof Of Concept.
 
-## Build & Run
+Поддерживает IPv4/v6, TCP/UDP.
 
-Use `cargo build`, `cargo check`, etc. as normal. Run your program with:
+#### Сборка и запуск
 
-```shell
-cargo run --release --config 'target."cfg(all())".runner="sudo -E"'
-```
+1. Установить [Rust](https://www.rust-lang.org/learn/get-started)
+2. `rustup default stable`
+3. `rustup toolchain add nightly`
+4. `rustup component add rust-src --toolchain nightly`
+5. `cargo install cargo-generate`
+6. `cargo install bpf-linker`
+7. `cargo install bindgen-cli`
+8. `make build` - сборка проекта.
+9. `make run` - запуск проекта. Если в `Makefile` изменить `RUST_LOG=info` на `RUST_LOG=debug` то будект показан весь перехватываемый траффик.
 
-Cargo build scripts are used to automatically build the eBPF correctly and include it in the
-program.
 
-## Cross-compiling on macOS
+#### Описание настроек
+Настроки находятся в `cobtrib/settings.yaml`.
 
-Cross compilation should work on both Intel and Apple Silicon Macs.
+`interfaces` - Сетевые интерфейсы с которыми работаем.
 
-```shell
-CC=${ARCH}-linux-musl-gcc cargo build --package rbpf --release \
-  --target=${ARCH}-unknown-linux-musl \
-  --config=target.${ARCH}-unknown-linux-musl.linker=\"${ARCH}-linux-musl-gcc\"
-```
-The cross-compiled program `target/${ARCH}-unknown-linux-musl/release/rbpf` can be
-copied to a Linux server or VM and run there.
+`input / output` соответственно отвечают за то, какой тип трафика на указанном интерфейсе обрабатываем.
+
+Firewall работает **только** в режиме дропа пакетов.
+
+Секции `v4/v6` отвечают соответственно за `IPv4` и `IPv6`
+
+`input / output` - за тип траффика, входящий / исходящий.
+
+`addresses / ports` - списки портов которые блокируем.
