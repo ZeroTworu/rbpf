@@ -1,4 +1,10 @@
-interface: "enp5s0"
+interfaces:
+  input:
+    - "enp5s0"
+    - "lo"
+  output:
+    - "enp5s0"
+    - "lo"
 v4:
   input:
     addresses:

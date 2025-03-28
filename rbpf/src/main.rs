@@ -5,7 +5,7 @@ use crate::loader::v6::load_v6;
 use aya::programs::{SchedClassifier, TcAttachType};
 use aya::Ebpf;
 use clap::Parser;
-use log::{debug, warn};
+use log::{debug, info, warn};
 use tokio::fs::read_to_string;
 use tokio::signal;
 use yaml_rust2::YamlLoader;
@@ -45,18 +45,7 @@ async fn init_bpf() -> anyhow::Result<()> {
         warn!("failed to initialize eBPF logger: {}", e);
     }
 
-    let iface = read_settings(&mut ebpf, opt.cfg).await?;
-
-    let program_egress: &mut SchedClassifier = ebpf.program_mut("tc_egress").unwrap().try_into()?;
-
-    program_egress.load()?;
-    program_egress.attach(&iface, TcAttachType::Egress)?;
-
-    let program_ingress: &mut SchedClassifier =
-        ebpf.program_mut("tc_ingress").unwrap().try_into()?;
-
-    program_ingress.load()?;
-    program_ingress.attach(&iface, TcAttachType::Ingress)?;
+    let _ = read_settings(&mut ebpf, opt.cfg).await?;
 
     let ctrl_c = signal::ctrl_c();
     println!("Waiting for Ctrl-C...");
@@ -64,11 +53,43 @@ async fn init_bpf() -> anyhow::Result<()> {
     Ok(())
 }
 
-async fn read_settings(ebpf: &mut Ebpf, path: String) -> anyhow::Result<String> {
+async fn read_settings(ebpf: &mut Ebpf, path: String) -> anyhow::Result<()> {
     let yaml = read_to_string(path).await?;
     let settings = YamlLoader::load_from_str(&yaml)?;
     let _ = load_v4(ebpf, &settings[0]).await;
     let _ = load_v6(ebpf, &settings[0]).await;
 
-    Ok(settings[0]["interface"].as_str().unwrap().into())
+    // TODO: Придумать как это красиво убрать в отдельный лоадер
+    let interfaces = &settings[0]["interfaces"];
+
+    match interfaces["output"].as_vec() {
+        Some(interfaces) => {
+            let program_egress: &mut SchedClassifier =
+                ebpf.program_mut("tc_egress").unwrap().try_into()?;
+            program_egress.load()?;
+            for iface in interfaces {
+                let iface = iface.as_str().unwrap();
+                info!("Append output listener to: {}", iface);
+                program_egress.attach(&iface, TcAttachType::Egress)?;
+            }
+        }
+        None => warn!("no output interfaces found"),
+    }
+
+    match interfaces["input"].as_vec() {
+        Some(interfaces) => {
+            let program_ingress: &mut SchedClassifier =
+                ebpf.program_mut("tc_ingress").unwrap().try_into()?;
+            program_ingress.load()?;
+
+            for iface in interfaces {
+                let iface = iface.as_str().unwrap();
+                info!("Append output listener to: {}", iface);
+                program_ingress.attach(&iface, TcAttachType::Egress)?;
+            }
+        }
+        None => warn!("no input interfaces found"),
+    }
+
+    Ok(())
 }

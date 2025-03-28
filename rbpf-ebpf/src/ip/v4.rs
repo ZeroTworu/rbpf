@@ -1,7 +1,7 @@
 use crate::filter::v4::{is_in_v4_block, is_out_v4_block};
 use crate::ip::{ptr_at, TcContext};
 use aya_ebpf::bindings::{TC_ACT_PIPE, TC_ACT_SHOT};
-use aya_log_ebpf::{info, warn};
+use aya_log_ebpf::{debug, warn};
 use network_types::eth::EthHdr;
 use network_types::ip::{IpProto, Ipv4Hdr};
 use network_types::tcp::TcpHdr;
@@ -58,7 +58,7 @@ pub fn handle_ingress_v4(ctx: &TcContext) -> Result<i32, ()> {
         return Ok(TC_ACT_SHOT);
     }
 
-    info!(
+    debug!(
         ctx,
         "V4 INPUT: {:i}:{} -> {:i}:{}",
         ret.source_addr,
@@ -84,7 +84,7 @@ pub fn handle_egress_v4(ctx: &TcContext) -> Result<i32, ()> {
         return Ok(TC_ACT_SHOT);
     }
 
-    info!(
+    debug!(
         ctx,
         "V4 OUTPUT: {:i}:{} -> {:i}:{}",
         ret.source_addr,
