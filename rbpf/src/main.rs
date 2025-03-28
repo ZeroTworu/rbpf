@@ -69,8 +69,8 @@ async fn read_settings(ebpf: &mut Ebpf, path: String) -> anyhow::Result<()> {
             program_egress.load()?;
             for iface in interfaces {
                 let iface = iface.as_str().unwrap();
-                info!("Append output listener to: {}", iface);
                 program_egress.attach(&iface, TcAttachType::Egress)?;
+                info!("Append output listener to: {}", iface);
             }
         }
         None => warn!("no output interfaces found"),
@@ -84,8 +84,8 @@ async fn read_settings(ebpf: &mut Ebpf, path: String) -> anyhow::Result<()> {
 
             for iface in interfaces {
                 let iface = iface.as_str().unwrap();
-                info!("Append output listener to: {}", iface);
-                program_ingress.attach(&iface, TcAttachType::Egress)?;
+                program_ingress.attach(&iface, TcAttachType::Ingress)?;
+                info!("Append input listener to: {}", iface);
             }
         }
         None => warn!("no input interfaces found"),
