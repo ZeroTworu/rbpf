@@ -1,8 +1,7 @@
-use crate::loader::helpers::ports_maker;
+use crate::loader::helpers::{ports_maker, v4_addresses_maker};
 use aya::maps::HashMap;
 use aya::Ebpf;
-use log::{info, warn};
-use std::net::Ipv4Addr;
+use log::warn;
 use yaml_rust2::Yaml;
 
 const OUT_BLOCKLIST_V4_PORTS: &str = "OUT_BLOCKLIST_V4_PORTS";
@@ -23,9 +22,7 @@ pub async fn load_v4(ebpf: &mut Ebpf, cfg: &Yaml) -> anyhow::Result<()> {
         match v4["input"]["addresses"].as_vec() {
             Some(addresses) => {
                 for addr in addresses {
-                    let v4: Ipv4Addr = String::from(addr.as_str().unwrap()).parse()?;
-                    info!("address: {} added to IN V4 BLOCKLIST", v4);
-                    in_blocklist.insert(&v4.into(), 0, 0)?;
+                    v4_addresses_maker(&mut in_blocklist, addr)?
                 }
             }
             None => warn!("Addresses not found in {}", IN_BLOCKLIST_V4_ADDRESSES),
@@ -53,9 +50,7 @@ pub async fn load_v4(ebpf: &mut Ebpf, cfg: &Yaml) -> anyhow::Result<()> {
         match v4["output"]["addresses"].as_vec() {
             Some(addresses) => {
                 for addr in addresses {
-                    let v4: Ipv4Addr = String::from(addr.as_str().unwrap()).parse()?;
-                    info!("address: {} added to OUT V4 BLOCKLIST", v4);
-                    out_blocklist.insert(&v4.into(), 0, 0)?;
+                    v4_addresses_maker(&mut out_blocklist, addr)?
                 }
             }
             None => warn!("Addresses not found in {}", OUT_BLOCKLIST_V4_ADDRESSES),
