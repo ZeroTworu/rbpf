@@ -4,7 +4,7 @@ pub mod v6;
 use aya_ebpf::programs::TcContext;
 use core::mem;
 
-#[inline(always)] //
+#[inline(always)]
 pub fn ptr_at<T>(ctx: &TcContext, offset: usize) -> Result<*const T, ()> {
     let start = ctx.data();
     let end = ctx.data_end();

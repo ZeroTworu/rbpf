@@ -1,8 +1,7 @@
-use crate::loader::helpers::ports_maker;
+use crate::loader::helpers::{ports_maker, v6_addresses_maker};
 use aya::maps::HashMap;
 use aya::Ebpf;
-use log::{info, warn};
-use std::net::Ipv6Addr;
+use log::warn;
 use yaml_rust2::Yaml;
 
 const OUT_BLOCKLIST_V6_PORTS: &str = "OUT_BLOCKLIST_V6_PORTS";
@@ -11,6 +10,10 @@ const OUT_BLOCKLIST_V6_ADDRESSES: &str = "OUT_BLOCKLIST_V6_ADDRESSES";
 const IN_BLOCKLIST_V6_PORTS: &str = "IN_BLOCKLIST_V6_PORTS";
 
 const IN_BLOCKLIST_V6_ADDRESSES: &str = "IN_BLOCKLIST_V6_ADDRESSES";
+
+const IN_BLOCKLIST_V6_IP_PORT: &str = "IN_BLOCKLIST_V6_IP_PORT";
+
+const OUT_BLOCKLIST_V6_IP_PORT: &str = "OUT_BLOCKLIST_V6_IP_PORT";
 
 pub async fn load_v6(ebpf: &mut Ebpf, cfg: &Yaml) -> anyhow::Result<()> {
     let v6 = &cfg["v6"];
@@ -22,9 +25,7 @@ pub async fn load_v6(ebpf: &mut Ebpf, cfg: &Yaml) -> anyhow::Result<()> {
         match v6["input"]["addresses"].as_vec() {
             Some(addresses) => {
                 for addr in addresses {
-                    let v6: Ipv6Addr = String::from(addr.as_str().unwrap()).parse()?;
-                    info!("address: {} added to IN V6 BLOCKLIST", v6);
-                    in_blocklist.insert(&v6.to_bits(), 0, 0)?;
+                    v6_addresses_maker(&mut in_blocklist, addr)?;
                 }
             }
             None => warn!("Addresses not found in {}", IN_BLOCKLIST_V6_ADDRESSES),
@@ -52,9 +53,7 @@ pub async fn load_v6(ebpf: &mut Ebpf, cfg: &Yaml) -> anyhow::Result<()> {
         match v6["output"]["addresses"].as_vec() {
             Some(addresses) => {
                 for addr in addresses {
-                    let v6: Ipv6Addr = String::from(addr.as_str().unwrap()).parse()?;
-                    info!("address: {} added to OUT V6 BLOCKLIST", v6);
-                    out_blocklist.insert(&v6.to_bits(), 0, 0)?;
+                    v6_addresses_maker(&mut out_blocklist, addr)?;
                 }
             }
             None => warn!("Addresses not found in {}", OUT_BLOCKLIST_V6_ADDRESSES),

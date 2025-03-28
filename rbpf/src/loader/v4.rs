@@ -12,6 +12,10 @@ const IN_BLOCKLIST_V4_PORTS: &str = "IN_BLOCKLIST_V4_PORTS";
 
 const IN_BLOCKLIST_V4_ADDRESSES: &str = "IN_BLOCKLIST_V4_ADDRESSES";
 
+const IN_BLOCKLIST_V4_IP_PORT: &str = "IN_BLOCKLIST_V4_IP_PORT";
+
+const OUT_BLOCKLIST_V4_IP_PORT: &str = "OUT_BLOCKLIST_V4_IP_PORT";
+
 pub async fn load_v4(ebpf: &mut Ebpf, cfg: &Yaml) -> anyhow::Result<()> {
     let v4 = &cfg["v4"];
 
