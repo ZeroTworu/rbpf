@@ -56,14 +56,14 @@ pub fn handle_ingress_v6(ctx: &TcContext) -> Result<i32, ()> {
     if is_in_v6_block(&ret) {
         warn!(
             ctx,
-            "V6 [BLOCK] {:i}:{} as INPUT RULE", ret.source_addr, ret.source_port
+            "[BLOCK] {:i}:{} as INPUT RULE", ret.source_addr, ret.source_port
         );
         return Ok(TC_ACT_SHOT);
     }
 
     debug!(
         ctx,
-        "V6 INPUT: {:i}:{} -> {:i}:{}",
+        "INPUT: {:i}:{} -> {:i}:{}",
         ret.source_addr,
         ret.source_port,
         ret.destination_addr,
@@ -82,14 +82,14 @@ pub fn handle_egress_v6(ctx: &TcContext) -> Result<i32, ()> {
     if is_out_v6_block(&ret) {
         warn!(
             ctx,
-            "V6 [BLOCK] {:i}:{} as OUTPUT RULE", ret.source_addr, ret.source_port
+            "[BLOCK] {:i}:{} as OUTPUT RULE", ret.source_addr, ret.source_port
         );
         return Ok(TC_ACT_SHOT);
     }
 
     debug!(
         ctx,
-        "V6 OUTPUT: {:i}:{} -> {:i}:{}",
+        "OUTPUT: {:i}:{} -> {:i}:{}",
         ret.source_addr,
         ret.source_port,
         ret.destination_addr,

@@ -1,17 +1,19 @@
 use crate::ip::v4::ParseResultV4;
 use aya_ebpf::{macros::map, maps::HashMap};
 
-#[map]
-static IN_BLOCKLIST_V4_ADDRESSES: HashMap<u32, u32> = HashMap::with_max_entries(1024, 0);
+const MAX_ENTRIES: u32 = 65535;
 
 #[map]
-static IN_BLOCKLIST_V4_PORTS: HashMap<u16, u16> = HashMap::with_max_entries(1024, 0);
+static IN_BLOCKLIST_V4_ADDRESSES: HashMap<u32, u32> = HashMap::with_max_entries(MAX_ENTRIES, 0);
 
 #[map]
-static OUT_BLOCKLIST_V4_ADDRESSES: HashMap<u32, u32> = HashMap::with_max_entries(1024, 0);
+static IN_BLOCKLIST_V4_PORTS: HashMap<u16, u16> = HashMap::with_max_entries(MAX_ENTRIES, 0);
 
 #[map]
-static OUT_BLOCKLIST_V4_PORTS: HashMap<u16, u16> = HashMap::with_max_entries(1024, 0);
+static OUT_BLOCKLIST_V4_ADDRESSES: HashMap<u32, u32> = HashMap::with_max_entries(MAX_ENTRIES, 0);
+
+#[map]
+static OUT_BLOCKLIST_V4_PORTS: HashMap<u16, u16> = HashMap::with_max_entries(MAX_ENTRIES, 0);
 
 // Такое извращение с || нужно, что бы когда программа загружена как eBPF не происходил сегфол
 

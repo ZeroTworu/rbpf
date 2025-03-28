@@ -53,14 +53,14 @@ pub fn handle_ingress_v4(ctx: &TcContext) -> Result<i32, ()> {
     if is_in_v4_block(&ret) {
         warn!(
             ctx,
-            "V4 [BLOCK] {:i}:{} as INPUT RULE", ret.source_addr, ret.source_port
+            "[BLOCK] {:i}:{} as INPUT RULE", ret.source_addr, ret.source_port
         );
         return Ok(TC_ACT_SHOT);
     }
 
     debug!(
         ctx,
-        "V4 INPUT: {:i}:{} -> {:i}:{}",
+        "INPUT: {:i}:{} -> {:i}:{}",
         ret.source_addr,
         ret.source_port,
         ret.destination_addr,
@@ -79,14 +79,14 @@ pub fn handle_egress_v4(ctx: &TcContext) -> Result<i32, ()> {
     if is_out_v4_block(&ret) {
         warn!(
             ctx,
-            "V4 [BLOCK] {:i}:{} as OUTPUT RULE", ret.destination_addr, ret.destination_port
+            "[BLOCK] {:i}:{} as OUTPUT RULE", ret.destination_addr, ret.destination_port
         );
         return Ok(TC_ACT_SHOT);
     }
 
     debug!(
         ctx,
-        "V4 OUTPUT: {:i}:{} -> {:i}:{}",
+        "OUTPUT: {:i}:{} -> {:i}:{}",
         ret.source_addr,
         ret.source_port,
         ret.destination_addr,
