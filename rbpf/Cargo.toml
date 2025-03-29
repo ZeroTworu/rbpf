@@ -11,10 +11,10 @@ env_logger = { workspace = true }
 libc = { workspace = true }
 log = { workspace = true }
 tokio = { workspace = true, features = ["macros", "rt", "rt-multi-thread", "net", "signal", "fs"] }
-
 clap = { workspace = true, features = ["derive"] }
 yaml-rust2 = "0.10.1"
 ipnet = "2.11.0"
+
 [build-dependencies]
 anyhow = { workspace = true }
 aya-build = { workspace = true }

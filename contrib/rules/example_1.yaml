@@ -1,0 +1,8 @@
+tcp: true
+udp: false
+ok: false
+drop: true
+addrv4: "217.65.3.21"
+port: 0
+v4: true
+v6: true

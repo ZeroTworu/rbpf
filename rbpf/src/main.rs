@@ -1,4 +1,5 @@
 mod loader;
+mod rules;
 
 use crate::loader::v4::load_v4;
 use crate::loader::v6::load_v6;
@@ -9,11 +10,15 @@ use log::{debug, info, warn};
 use tokio::fs::read_to_string;
 use tokio::signal;
 use yaml_rust2::YamlLoader;
+use crate::rules::load_rules;
+
 
 #[derive(Debug, Parser)]
 struct Opt {
     #[clap(short, long, default_value = "./settings.yaml")]
     cfg: String,
+    #[clap(short, long, default_value = "./rules/")]
+    rules: String,
 }
 
 #[tokio::main]
@@ -56,8 +61,10 @@ async fn init_bpf() -> anyhow::Result<()> {
 async fn read_settings(ebpf: &mut Ebpf, path: String) -> anyhow::Result<()> {
     let yaml = read_to_string(path).await?;
     let settings = YamlLoader::load_from_str(&yaml)?;
-    let _ = load_v4(ebpf, &settings[0])?;
-    let _ = load_v6(ebpf, &settings[0])?;
+    // let _ = load_v4(ebpf, &settings[0])?;
+    // let _ = load_v6(ebpf, &settings[0])?;
+
+    load_rules("./rules/", ebpf).await?;
 
     // TODO: Придумать как это красиво убрать в отдельный лоадер
     let interfaces = &settings[0]["interfaces"];
