@@ -1,4 +1,4 @@
-use crate::filter::v6::{is_in_v6_block, is_out_v6_block};
+use crate::filter::v6::{is_in_v6_block, is_in_v6_subnet_block, is_out_v6_block, is_out_v6_subnet_block};
 use crate::ip::{ptr_at, ptr_at_xdp, TcContext};
 use aya_ebpf::bindings::{xdp_action, TC_ACT_PIPE, TC_ACT_SHOT};
 use aya_ebpf::programs::XdpContext;
@@ -49,14 +49,10 @@ pub fn parse_v6(ctx: &TcContext) -> Result<ParseResultV6, ()> {
 }
 
 pub fn parse_v6_xdp(ctx: &XdpContext) -> Result<ParseResultV6, ()> {
-    let ipv6hdr: Ipv6Hdr = unsafe { *ptr_at_xdp(&ctx, 0)? };
-
+    let ipv6hdr: Ipv6Hdr = unsafe { *ptr_at_xdp(&ctx, EthHdr::LEN)? };
     let destination_addr = Ipv6Addr::from(unsafe { ipv6hdr.dst_addr.in6_u.u6_addr8 });
-
     let source_addr = Ipv6Addr::from(unsafe { ipv6hdr.src_addr.in6_u.u6_addr8 });
-
     let proto = ipv6hdr.next_hdr;
-
     let (source_port, destination_port) = match proto {
         IpProto::Tcp => {
             let tcphdr: TcpHdr = unsafe { *ptr_at_xdp(ctx, EthHdr::LEN + Ipv6Hdr::LEN)? };
@@ -91,6 +87,14 @@ pub fn handle_ingress_v6(ctx: &XdpContext) -> Result<u32, ()> {
         return Ok(xdp_action::XDP_DROP);
     }
 
+    if is_in_v6_subnet_block(&ret) {
+        warn!(
+            ctx,
+            "[BLOCK] {:i}:{} as INPUT RULE (SUBNET)", ret.source_addr, ret.source_port
+        );
+        return Ok(xdp_action::XDP_DROP);
+    }
+
     debug!(
         ctx,
         "INPUT: {:i}:{} -> {:i}:{}",
@@ -113,6 +117,14 @@ pub fn handle_egress_v6(ctx: &TcContext) -> Result<i32, ()> {
         warn!(
             ctx,
             "[BLOCK] {:i}:{} as OUTPUT RULE", ret.source_addr, ret.source_port
+        );
+        return Ok(TC_ACT_SHOT);
+    }
+
+    if is_out_v6_subnet_block(&ret) {
+        warn!(
+            ctx,
+            "[BLOCK] {:i}:{} as OUTPUT RULE (SUBNET)", ret.source_addr, ret.source_port
         );
         return Ok(TC_ACT_SHOT);
     }

@@ -23,11 +23,8 @@ v4:
 v6:
   input:
     addresses:
-      - "::1"
+      - "::1/24"
     ports:
-      - "5000"
   output:
     addresses:
-      - "::1"
     ports:
-      - "5000"

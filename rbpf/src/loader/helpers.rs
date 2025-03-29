@@ -1,7 +1,5 @@
-use aya::maps::HashMap;
-use aya::maps::MapData;
+use aya::maps::{Array, HashMap, MapData};
 use ipnet::Ipv4Net;
-use ipnet::Ipv6Net;
 use std::net::Ipv4Addr;
 use std::net::Ipv6Addr;
 use yaml_rust2::Yaml;
@@ -92,22 +90,40 @@ pub fn v6_addresses_maker(
         // Но т.к. Предполагается, что настройки заполняет квалифицированный человек
         // Который не будет сознательно вредить - делаем так.
         Some(addr) => {
-            if addr.contains("/") {
-                // Обрабатываем подсеть
-                // Запись вида: ::1/24
-                let net: Ipv6Net = addr.parse()?;
-                for addr in net.hosts() {
-                    blocklist.insert(&addr.to_bits(), 0, 0)?;
-                }
-
-                return Ok(());
+            if !addr.contains("/") {
+                // Обычный адрес IPv6
+                // Запись вида: ::1
+                let v6: Ipv6Addr = String::from(addr).parse()?;
+                blocklist.insert(&v6.to_bits(), 0, 0)?;
             }
-            // Обычный адрес IPv6
-            // Запись вида: ::1
-            let v6: Ipv6Addr = String::from(addr).parse()?;
-            blocklist.insert(&v6.to_bits(), 0, 0)?;
             Ok(())
         }
         None => Ok(()),
     }
+}
+
+// т.к. IPv6 содержит туеву хучу адресов, закешировать тупо всё из подсети как в IPv4
+// Мы не можем, поэтому шмагия.
+pub fn v6_subnets_maker(
+    blocklist: &mut Array<&mut MapData, u128>,
+    address: &Yaml,
+    index: usize,
+) -> anyhow::Result<()> {
+    match address.as_str() {
+        Some(addr) => {
+            if addr.contains("/") {
+                let parts = addr.split("/").collect::<Vec<&str>>();
+                let v6: Ipv6Addr = parts[0].parse()?;
+                let subnet: u8 = parts[1].parse()?;
+                blocklist.set(index as u32, pack_numbers(v6.to_bits(), subnet), 0)?;
+            }
+            Ok(())
+        }
+        None => Ok(()),
+    }
+}
+
+// Передача IPv6 + subnet mask
+fn pack_numbers(v6: u128, mask: u8) -> u128 {
+    (v6 << 8) | mask as u128
 }
