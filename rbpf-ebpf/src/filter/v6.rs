@@ -49,7 +49,6 @@ pub fn is_out_v6_block(pac: &ParseResultV6) -> bool {
     res
 }
 
-
 pub fn is_in_v6_subnet_block(pac: &ParseResultV6) -> bool {
     is_in_subnet_block_for_v6(pac, true)
 }
@@ -59,9 +58,8 @@ pub fn is_out_v6_subnet_block(pac: &ParseResultV6) -> bool {
 }
 
 pub fn is_in_subnet_block_for_v6(pac: &ParseResultV6, is_input: bool) -> bool {
-    let index: u32 = 0;
+    let mut index: u32 = 0;
     loop {
-
         let item = if is_input {
             IN_BLOCK_LIST_V6_SUBNETS.get(index)
         } else {

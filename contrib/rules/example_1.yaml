@@ -1,8 +1,23 @@
+name: "Ban opennet.ru"
+
 tcp: true
 udp: false
+
 ok: false
 drop: true
-addrv4: "217.65.3.21"
-port: 0
+
+input: false
+output: true
+
 v4: true
 v6: true
+
+source_addr_v4: "217.65.3.21"
+destination_addr_v4: "217.65.3.21"
+
+source_port_start: 0
+source_port_end: 0
+
+destination_port_start: 0
+destination_port_end: 0
+

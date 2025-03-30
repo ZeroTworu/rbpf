@@ -1,7 +1,9 @@
+use crate::events::LogMessage;
 use crate::filter::v4::{
     is_in_v4_block, is_in_v4_block_ip_port, is_out_v4_block, is_out_v4_block_ip_port,
 };
 use crate::ip::{ptr_at, ptr_at_xdp, TcContext};
+use crate::rules::{check_rule_v4, Action};
 use aya_ebpf::bindings::{xdp_action, TC_ACT_PIPE, TC_ACT_SHOT};
 use aya_ebpf::programs::XdpContext;
 use aya_log_ebpf::{debug, warn};
@@ -18,9 +20,12 @@ pub struct ParseResultV4 {
     pub source_addr: u32,
 
     pub proto: IpProto,
+
+    pub input: bool,
+    pub output: bool,
 }
 
-pub fn parse_v4(ctx: &TcContext) -> Result<ParseResultV4, ()> {
+pub fn parse_v4(ctx: &TcContext, input: bool) -> Result<ParseResultV4, ()> {
     let ipv4hdr: Ipv4Hdr = ctx.load(EthHdr::LEN).map_err(|_| ())?;
     let destination_addr = u32::from_be(ipv4hdr.dst_addr);
     let source_addr = u32::from_be(ipv4hdr.src_addr);
@@ -44,10 +49,12 @@ pub fn parse_v4(ctx: &TcContext) -> Result<ParseResultV4, ()> {
         source_addr,
         destination_addr,
         proto,
+        input,
+        output: !input,
     })
 }
 
-pub fn parse_v4_xdp(ctx: &XdpContext) -> Result<ParseResultV4, ()> {
+pub fn parse_v4_xdp(ctx: &XdpContext, input: bool) -> Result<ParseResultV4, ()> {
     let ipv4hdr: Ipv4Hdr = unsafe { *ptr_at_xdp(&ctx, EthHdr::LEN)? };
     let destination_addr = u32::from_be(ipv4hdr.dst_addr);
     let source_addr = u32::from_be(ipv4hdr.src_addr);
@@ -70,30 +77,16 @@ pub fn parse_v4_xdp(ctx: &XdpContext) -> Result<ParseResultV4, ()> {
         source_addr,
         destination_addr,
         proto,
+        input,
+        output: !input,
     })
 }
 
 pub fn handle_ingress_v4(ctx: &XdpContext) -> Result<u32, ()> {
-    let ret = match parse_v4_xdp(&ctx) {
+    let ret = match parse_v4_xdp(&ctx, true) {
         Ok(ret) => ret,
         Err(_) => return Ok(xdp_action::XDP_PASS),
     };
-
-    if is_in_v4_block(&ret) {
-        warn!(
-            ctx,
-            "[BLOCK] {:i}:{} as INPUT RULE", ret.source_addr, ret.source_port
-        );
-        return Ok(xdp_action::XDP_DROP);
-    }
-
-    if is_in_v4_block_ip_port(&ret) {
-        warn!(
-            ctx,
-            "[BLOCK] {:i}:{} as INPUT RULE (IP:PORT)", ret.source_addr, ret.source_port
-        );
-        return Ok(xdp_action::XDP_PASS);
-    }
 
     debug!(
         ctx,
@@ -103,32 +96,22 @@ pub fn handle_ingress_v4(ctx: &XdpContext) -> Result<u32, ()> {
         ret.destination_addr,
         ret.destination_port
     );
-
-    Ok(xdp_action::XDP_PASS)
+    let (action, rule_id) = check_rule_v4(&ret);
+    match action {
+        Action::Ok => Ok(xdp_action::XDP_PASS),
+        Action::Drop => {
+            LogMessage::send_from_rule("[V4] INPUT BAN", rule_id);
+            Ok(xdp_action::XDP_DROP)
+        }
+        Action::Pipe => Ok(xdp_action::XDP_PASS),
+    }
 }
 
 pub fn handle_egress_v4(ctx: &TcContext) -> Result<i32, ()> {
-    let ret = match parse_v4(&ctx) {
+    let ret = match parse_v4(&ctx, false) {
         Ok(ret) => ret,
         Err(_) => return Ok(TC_ACT_PIPE),
     };
-
-    if is_out_v4_block(&ret) {
-        warn!(
-            ctx,
-            "[BLOCK] {:i}:{} as OUTPUT RULE", ret.destination_addr, ret.destination_port
-        );
-        return Ok(TC_ACT_SHOT);
-    }
-
-    if is_out_v4_block_ip_port(&ret) {
-        warn!(
-            ctx,
-            "[BLOCK] {:i}:{} as OUTPUT RULE (IP:PORT)", ret.destination_addr, ret.destination_port
-        );
-        return Ok(TC_ACT_SHOT);
-    }
-
     debug!(
         ctx,
         "OUTPUT: {:i}:{} -> {:i}:{}",
@@ -138,5 +121,13 @@ pub fn handle_egress_v4(ctx: &TcContext) -> Result<i32, ()> {
         ret.destination_port
     );
 
-    Ok(TC_ACT_PIPE)
+    let (action, rule_id) = check_rule_v4(&ret);
+    match action {
+        Action::Ok => Ok(TC_ACT_PIPE),
+        Action::Drop => {
+            LogMessage::send_from_rule("[V4] INPUT BAN", rule_id);
+            Ok(TC_ACT_SHOT)
+        }
+        Action::Pipe => Ok(TC_ACT_PIPE),
+    }
 }

@@ -1,3 +1,4 @@
+mod events;
 mod loader;
 mod rules;
 
@@ -6,12 +7,13 @@ use crate::loader::v6::load_v6;
 use aya::programs::{SchedClassifier, TcAttachType, Xdp, XdpFlags};
 use aya::Ebpf;
 use clap::Parser;
+use events::log_listener;
 use log::{debug, info, warn};
+use rules::load_rules;
+use std::sync::Arc;
 use tokio::fs::read_to_string;
 use tokio::signal;
 use yaml_rust2::YamlLoader;
-use crate::rules::load_rules;
-
 
 #[derive(Debug, Parser)]
 struct Opt {
@@ -50,21 +52,18 @@ async fn init_bpf() -> anyhow::Result<()> {
         warn!("failed to initialize eBPF logger: {}", e);
     }
 
-    let _ = read_settings(&mut ebpf, opt.cfg).await?;
+    let _ = read_settings(&mut ebpf, &opt).await?;
 
-    let ctrl_c = signal::ctrl_c();
-    println!("Waiting for Ctrl-C...");
-    ctrl_c.await?;
+    println!("Waiting for logs...");
+    log_listener(&mut ebpf).await?;
     Ok(())
 }
 
-async fn read_settings(ebpf: &mut Ebpf, path: String) -> anyhow::Result<()> {
-    let yaml = read_to_string(path).await?;
+async fn read_settings(ebpf: &mut Ebpf, opt: &Opt) -> anyhow::Result<()> {
+    let yaml = read_to_string(&opt.cfg).await?;
     let settings = YamlLoader::load_from_str(&yaml)?;
-    // let _ = load_v4(ebpf, &settings[0])?;
-    // let _ = load_v6(ebpf, &settings[0])?;
 
-    load_rules("./rules/", ebpf).await?;
+    load_rules(&opt.rules, ebpf).await?;
 
     // TODO: Придумать как это красиво убрать в отдельный лоадер
     let interfaces = &settings[0]["interfaces"];

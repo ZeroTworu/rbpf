@@ -1,4 +1,6 @@
-use crate::filter::v6::{is_in_v6_block, is_in_v6_subnet_block, is_out_v6_block, is_out_v6_subnet_block};
+use crate::filter::v6::{
+    is_in_v6_block, is_in_v6_subnet_block, is_out_v6_block, is_out_v6_subnet_block,
+};
 use crate::ip::{ptr_at, ptr_at_xdp, TcContext};
 use aya_ebpf::bindings::{xdp_action, TC_ACT_PIPE, TC_ACT_SHOT};
 use aya_ebpf::programs::XdpContext;
