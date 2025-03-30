@@ -1,6 +1,3 @@
-use crate::filter::v6::{
-    is_in_v6_block, is_in_v6_subnet_block, is_out_v6_block, is_out_v6_subnet_block,
-};
 use crate::ip::{ptr_at, ptr_at_xdp, TcContext};
 use aya_ebpf::bindings::{xdp_action, TC_ACT_PIPE, TC_ACT_SHOT};
 use aya_ebpf::programs::XdpContext;
@@ -81,22 +78,6 @@ pub fn handle_ingress_v6(ctx: &XdpContext) -> Result<u32, ()> {
         Err(_) => return Ok(xdp_action::XDP_PASS),
     };
 
-    if is_in_v6_block(&ret) {
-        warn!(
-            ctx,
-            "[BLOCK] {:i}:{} as INPUT RULE", ret.source_addr, ret.source_port
-        );
-        return Ok(xdp_action::XDP_DROP);
-    }
-
-    if is_in_v6_subnet_block(&ret) {
-        warn!(
-            ctx,
-            "[BLOCK] {:i}:{} as INPUT RULE (SUBNET)", ret.source_addr, ret.source_port
-        );
-        return Ok(xdp_action::XDP_DROP);
-    }
-
     debug!(
         ctx,
         "INPUT: {:i}:{} -> {:i}:{}",
@@ -114,22 +95,6 @@ pub fn handle_egress_v6(ctx: &TcContext) -> Result<i32, ()> {
         Ok(ret) => ret,
         Err(_) => return Ok(TC_ACT_PIPE),
     };
-
-    if is_out_v6_block(&ret) {
-        warn!(
-            ctx,
-            "[BLOCK] {:i}:{} as OUTPUT RULE", ret.source_addr, ret.source_port
-        );
-        return Ok(TC_ACT_SHOT);
-    }
-
-    if is_out_v6_subnet_block(&ret) {
-        warn!(
-            ctx,
-            "[BLOCK] {:i}:{} as OUTPUT RULE (SUBNET)", ret.source_addr, ret.source_port
-        );
-        return Ok(TC_ACT_SHOT);
-    }
 
     debug!(
         ctx,

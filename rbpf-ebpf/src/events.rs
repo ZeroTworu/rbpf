@@ -1,32 +1,69 @@
-use crate::rules::Rule;
+use crate::ip::v4::ParseResultV4;
 use aya_ebpf::{macros::map, maps::HashMap};
+use network_types::ip::IpProto;
+
+pub const DEBUG: u8 = 0;
+pub const INFO: u8 = 1;
+pub const WARN: u8 = 2;
+
 #[derive(Copy, Clone)]
 #[repr(C)]
 pub struct LogMessage {
     pub message: [u8; 128],
-    pub level: u8,
+
+    pub input: bool,
+    pub output: bool,
+    pub v4: bool,
+    pub v6: bool,
+    pub tcp: bool,
+    pub udp: bool,
+
+    pub source_addr_v4: u32,
+    pub destination_addr_v4: u32,
     pub rule_id: u32,
-    pub by_rule: bool,
+
+    pub source_port: u16,
+    pub destination_port: u16,
+
+    pub level: u8,
 }
 
 impl LogMessage {
-    pub fn send(message: &str) -> Self {
+    pub fn send_from_rule_v4(message: &str, rule_id: u32, pac: &ParseResultV4, level: u8) -> Self {
         let msg = Self {
             message: Self::str_to_u8(message),
-            rule_id: 0,
-            level: 0,
-            by_rule: false,
+            rule_id,
+            level,
+            v4: true,
+            v6: false,
+            input: pac.input,
+            output: pac.output,
+            udp: pac.proto == IpProto::Udp,
+            tcp: pac.proto == IpProto::Tcp,
+            destination_addr_v4: pac.destination_addr,
+            source_addr_v4: pac.source_addr,
+            source_port: pac.source_port,
+            destination_port: pac.destination_port,
         };
         send_log(&msg);
         msg
     }
 
-    pub fn send_from_rule(message: &str, rule_id: u32) -> Self {
+    pub fn send_from_v4(message: &str, pac: &ParseResultV4, level: u8) -> Self {
         let msg = Self {
             message: Self::str_to_u8(message),
-            rule_id,
-            level: 0,
-            by_rule: true,
+            rule_id: 0,
+            level,
+            v4: true,
+            v6: false,
+            input: pac.input,
+            output: pac.output,
+            udp: pac.proto == IpProto::Udp,
+            tcp: pac.proto == IpProto::Tcp,
+            destination_addr_v4: pac.destination_addr,
+            source_addr_v4: pac.source_addr,
+            source_port: pac.source_port,
+            destination_port: pac.destination_port,
         };
         send_log(&msg);
         msg

@@ -1,18 +1,11 @@
-mod events;
-mod loader;
-mod rules;
-
-use crate::loader::v4::load_v4;
-use crate::loader::v6::load_v6;
 use aya::programs::{SchedClassifier, TcAttachType, Xdp, XdpFlags};
 use aya::Ebpf;
 use clap::Parser;
-use events::log_listener;
 use log::{debug, info, warn};
-use rules::load_rules;
-use std::sync::Arc;
+
+use rbpf::events;
+use rbpf::rules;
 use tokio::fs::read_to_string;
-use tokio::signal;
 use yaml_rust2::YamlLoader;
 
 #[derive(Debug, Parser)]
@@ -55,7 +48,7 @@ async fn init_bpf() -> anyhow::Result<()> {
     let _ = read_settings(&mut ebpf, &opt).await?;
 
     println!("Waiting for logs...");
-    log_listener(&mut ebpf).await?;
+    events::log_listener(&mut ebpf).await?;
     Ok(())
 }
 
@@ -63,7 +56,7 @@ async fn read_settings(ebpf: &mut Ebpf, opt: &Opt) -> anyhow::Result<()> {
     let yaml = read_to_string(&opt.cfg).await?;
     let settings = YamlLoader::load_from_str(&yaml)?;
 
-    load_rules(&opt.rules, ebpf).await?;
+    rules::load_rules(&opt.rules, ebpf).await?;
 
     // TODO: Придумать как это красиво убрать в отдельный лоадер
     let interfaces = &settings[0]["interfaces"];

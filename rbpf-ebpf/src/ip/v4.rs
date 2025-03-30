@@ -1,12 +1,10 @@
+use crate::events;
 use crate::events::LogMessage;
-use crate::filter::v4::{
-    is_in_v4_block, is_in_v4_block_ip_port, is_out_v4_block, is_out_v4_block_ip_port,
-};
 use crate::ip::{ptr_at, ptr_at_xdp, TcContext};
 use crate::rules::{check_rule_v4, Action};
 use aya_ebpf::bindings::{xdp_action, TC_ACT_PIPE, TC_ACT_SHOT};
 use aya_ebpf::programs::XdpContext;
-use aya_log_ebpf::{debug, warn};
+use aya_log_ebpf::{debug, info, warn};
 use network_types::eth::EthHdr;
 use network_types::ip::{IpProto, Ipv4Hdr};
 use network_types::tcp::TcpHdr;
@@ -25,7 +23,7 @@ pub struct ParseResultV4 {
     pub output: bool,
 }
 
-pub fn parse_v4(ctx: &TcContext, input: bool) -> Result<ParseResultV4, ()> {
+pub fn parse_v4_tc(ctx: &TcContext, input: bool) -> Result<ParseResultV4, ()> {
     let ipv4hdr: Ipv4Hdr = ctx.load(EthHdr::LEN).map_err(|_| ())?;
     let destination_addr = u32::from_be(ipv4hdr.dst_addr);
     let source_addr = u32::from_be(ipv4hdr.src_addr);
@@ -96,11 +94,12 @@ pub fn handle_ingress_v4(ctx: &XdpContext) -> Result<u32, ()> {
         ret.destination_addr,
         ret.destination_port
     );
+
     let (action, rule_id) = check_rule_v4(&ret);
     match action {
         Action::Ok => Ok(xdp_action::XDP_PASS),
         Action::Drop => {
-            LogMessage::send_from_rule("[V4] INPUT BAN", rule_id);
+            LogMessage::send_from_rule_v4("BAN", rule_id, &ret, events::WARN);
             Ok(xdp_action::XDP_DROP)
         }
         Action::Pipe => Ok(xdp_action::XDP_PASS),
@@ -108,7 +107,7 @@ pub fn handle_ingress_v4(ctx: &XdpContext) -> Result<u32, ()> {
 }
 
 pub fn handle_egress_v4(ctx: &TcContext) -> Result<i32, ()> {
-    let ret = match parse_v4(&ctx, false) {
+    let ret = match parse_v4_tc(&ctx, false) {
         Ok(ret) => ret,
         Err(_) => return Ok(TC_ACT_PIPE),
     };
@@ -125,7 +124,7 @@ pub fn handle_egress_v4(ctx: &TcContext) -> Result<i32, ()> {
     match action {
         Action::Ok => Ok(TC_ACT_PIPE),
         Action::Drop => {
-            LogMessage::send_from_rule("[V4] INPUT BAN", rule_id);
+            LogMessage::send_from_rule_v4("BAN", rule_id, &ret, events::WARN);
             Ok(TC_ACT_SHOT)
         }
         Action::Pipe => Ok(TC_ACT_PIPE),

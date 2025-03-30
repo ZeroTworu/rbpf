@@ -5,10 +5,33 @@ use rand::Rng;
 use std::collections::HashMap as RustHashMap;
 use std::fs::read_dir;
 use std::net::Ipv4Addr;
+use std::sync::Arc;
+use std::sync::LazyLock;
+use std::vec::Vec;
 use tokio::fs::read_to_string;
+use tokio::sync::RwLock;
 use yaml_rust2::{Yaml, YamlLoader};
 
-//pub static mut RULES: RustHashMap<u32, &str> = RustHashMap::new();
+static STORE: LazyLock<Arc<RwLock<RustHashMap<u32, String>>>> =
+    LazyLock::new(|| Arc::new(RwLock::new(RustHashMap::new())));
+
+async fn set_rule_name(key: u32, value: String) {
+    let mut store = STORE.write().await;
+    store.insert(key, value);
+}
+
+pub async fn get_rule_name(key: u32) -> Option<String> {
+    let store = STORE.read().await;
+    store.get(&key).cloned()
+}
+
+const RULES_IN_V4: &str = "RULES_IN_V4";
+const RULES_OUT_V4: &str = "RULES_OUT_V4";
+
+struct RuleWithName {
+    name: String,
+    rule: Rule,
+}
 
 #[derive(Copy, Clone)]
 #[repr(C)]
@@ -107,20 +130,46 @@ impl Rule {
 }
 
 pub async fn load_rules(path: &str, ebpf: &mut Ebpf) -> anyhow::Result<()> {
-    let mut rules: HashMap<_, u32, Rule> = HashMap::try_from(ebpf.map_mut("RULES").unwrap())?;
     let paths = read_dir(path)?;
+    let mut rules: Vec<RuleWithName> = Vec::new();
 
-    for (index, path) in paths.enumerate() {
-        let uindex = u32::try_from(index)?;
+    for path in paths {
         let srule = read_to_string(path?.path()).await?;
         let yrule = &YamlLoader::load_from_str(&srule)?[0];
         let name = yrule["name"].as_str().unwrap();
         let rule = Rule::new(yrule);
-        rules.insert(uindex, rule, 0)?;
-        // unsafe {
-        //     RULES.insert(rule.rule_id, name);
-        // }
-        info!("Loading rule: {}, index: {}", name, index);
+        rules.push(RuleWithName {
+            name: String::from(name),
+            rule,
+        });
+    }
+    {
+        let mut rules_input: HashMap<_, u32, Rule> =
+            HashMap::try_from(ebpf.map_mut(RULES_IN_V4).unwrap())?;
+        for (index, rule) in rules
+            .iter()
+            .filter(|r| r.rule.input && r.rule.v4)
+            .enumerate()
+        {
+            let uindex = u32::try_from(index)?;
+            rules_input.insert(uindex, rule.rule, 0)?;
+            set_rule_name(rule.rule.rule_id, rule.name.to_string()).await;
+            info!("Loading input rule: {}, index: {}", rule.name, index);
+        }
+    }
+    {
+        let mut rules_output: HashMap<_, u32, Rule> =
+            HashMap::try_from(ebpf.map_mut(RULES_OUT_V4).unwrap())?;
+        for (index, rule) in rules
+            .iter()
+            .filter(|r| r.rule.output && r.rule.v4)
+            .enumerate()
+        {
+            let uindex = u32::try_from(index)?;
+            rules_output.insert(uindex, rule.rule, 0)?;
+            set_rule_name(rule.rule.rule_id, rule.name.to_string()).await;
+            info!("Loading output rule: {}, index: {}", rule.name, index);
+        }
     }
 
     Ok(())

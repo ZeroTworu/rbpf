@@ -8,10 +8,13 @@ use core::num::NonZeroUsize;
 use core::str::from_utf8;
 use network_types::ip::IpProto;
 
-const MAX_ENTRIES: u32 = 32;
+const MAX_ENTRIES: u32 = 256;
 
 #[map]
-static RULES: HashMap<u32, Rule> = HashMap::with_max_entries(MAX_ENTRIES, 0);
+static RULES_IN_V4: HashMap<u32, Rule> = HashMap::with_max_entries(MAX_ENTRIES, 0);
+
+#[map]
+static RULES_OUT_V4: HashMap<u32, Rule> = HashMap::with_max_entries(MAX_ENTRIES, 0);
 
 #[derive(Copy, Clone)]
 #[repr(C)]
@@ -65,7 +68,11 @@ pub enum Action {
 #[inline(always)]
 pub fn check_rule_v4(pac: &ParseResultV4) -> (Action, u32) {
     for index in 0..MAX_ENTRIES {
-        let rule = unsafe { RULES.get(&index) };
+        let rule = if pac.input {
+            unsafe { RULES_IN_V4.get(&index) }
+        } else {
+            unsafe { RULES_OUT_V4.get(&index) }
+        };
         match rule {
             Some(rule) => {
                 if !rule.v4 || (pac.input && !rule.input) || (pac.output && !rule.output) {
@@ -75,7 +82,7 @@ pub fn check_rule_v4(pac: &ParseResultV4) -> (Action, u32) {
                 let is_tcp = rule.tcp && pac.proto == IpProto::Tcp;
                 let is_udp = rule.udp && pac.proto == IpProto::Udp;
                 if is_tcp || is_udp {
-                    let res = match_rule(pac, rule);
+                    let res = match_rule_v4(pac, rule);
                     if res == Action::Pipe {
                         continue;
                     }
@@ -89,7 +96,7 @@ pub fn check_rule_v4(pac: &ParseResultV4) -> (Action, u32) {
 }
 
 #[inline(always)]
-fn match_rule(pac: &ParseResultV4, rule: &Rule) -> Action {
+fn match_rule_v4(pac: &ParseResultV4, rule: &Rule) -> Action {
     let full_s_match = (pac.source_addr == rule.source_addr_v4)
         && (rule.source_port_start..rule.source_port_end).contains(&pac.source_port);
     let full_d_match = (pac.destination_addr == rule.destination_addr_v4)
@@ -102,9 +109,30 @@ fn match_rule(pac: &ParseResultV4, rule: &Rule) -> Action {
     let port_d_match =
         (rule.destination_port_start..rule.destination_port_end).contains(&pac.destination_port);
 
+    let subnet_source_match = if rule.source_mask != 0 {
+        is_ip_in_subnet_v4(pac.source_addr, rule.source_addr_v4, rule.source_mask)
+    } else {
+        false
+    };
+
+    let subnet_destination_match = if rule.destination_mask != 0 {
+        is_ip_in_subnet_v4(
+            pac.destination_addr,
+            rule.destination_addr_v4,
+            rule.destination_mask,
+        )
+    } else {
+        false
+    };
+
     if full_s_match || full_d_match || addr_d_match || addr_s_match || port_s_match || port_d_match
     {
         return rule.to_action();
     }
     Action::Pipe
+}
+
+fn is_ip_in_subnet_v4(ip: u32, network: u32, prefix_len: u8) -> bool {
+    let mask = u32::MAX << (32 - prefix_len);
+    (ip & mask) == (network & mask)
 }
