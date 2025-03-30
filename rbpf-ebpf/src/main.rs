@@ -35,7 +35,7 @@ fn try_tc_egress(ctx: TcContext) -> Result<i32, ()> {
     let ethhdr: EthHdr = ctx.load(0).map_err(|_| ())?;
     match ethhdr.ether_type {
         EtherType::Ipv4 => handle_egress_v4(&ctx),
-        // EtherType::Ipv6 => handle_egress_v6(&ctx),
+        EtherType::Ipv6 => handle_egress_v6(&ctx),
         _ => Ok(TC_ACT_PIPE),
     }
 }

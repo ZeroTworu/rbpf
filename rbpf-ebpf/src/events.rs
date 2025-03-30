@@ -1,5 +1,4 @@
-use crate::ip::v4::ParseResultV4;
-use crate::ip::v6::ParseResultV6;
+use crate::ip::ParseResult;
 use aya_ebpf::{macros::map, maps::HashMap};
 use network_types::ip::IpProto;
 
@@ -33,7 +32,7 @@ pub struct LogMessage {
 }
 
 impl LogMessage {
-    pub fn send_from_rule_v4(message: &str, rule_id: u32, pac: &ParseResultV4, level: u8) -> Self {
+    pub fn send_from_rule(message: &str, rule_id: u32, pac: &ParseResult, level: u8) -> Self {
         let msg = Self {
             message: Self::str_to_u8(message),
             rule_id,
@@ -44,62 +43,18 @@ impl LogMessage {
             output: pac.output,
             udp: pac.proto == IpProto::Udp,
             tcp: pac.proto == IpProto::Tcp,
-            destination_addr_v4: pac.destination_addr,
-            source_addr_v4: pac.source_addr,
+            destination_addr_v4: pac.destination_addr_v4,
+            source_addr_v4: pac.source_addr_v4,
             source_port: pac.source_port,
             destination_port: pac.destination_port,
-            destination_addr_v6: 0,
-            source_addr_v6: 0,
+            destination_addr_v6: pac.destination_addr_v6,
+            source_addr_v6: pac.destination_addr_v6,
         };
         send_log(&msg);
         msg
     }
 
-    pub fn send_from_rule_v6(message: &str, rule_id: u32, pac: &ParseResultV6, level: u8) -> Self {
-        let msg = Self {
-            message: Self::str_to_u8(message),
-            rule_id,
-            level,
-            v4: true,
-            v6: false,
-            input: pac.input,
-            output: pac.output,
-            udp: pac.proto == IpProto::Udp,
-            tcp: pac.proto == IpProto::Tcp,
-            destination_addr_v4: 0,
-            source_addr_v4: 0,
-            source_port: pac.source_port,
-            destination_port: pac.destination_port,
-            destination_addr_v6: pac.destination_addr.to_bits(),
-            source_addr_v6: pac.source_addr.to_bits(),
-        };
-        send_log(&msg);
-        msg
-    }
-
-    pub fn send_from_v6(message: &str, pac: &ParseResultV6, level: u8) -> Self {
-        let msg = Self {
-            message: Self::str_to_u8(message),
-            rule_id: 0,
-            level,
-            v4: false,
-            v6: true,
-            input: pac.input,
-            output: pac.output,
-            udp: pac.proto == IpProto::Udp,
-            tcp: pac.proto == IpProto::Tcp,
-            destination_addr_v4: 0,
-            source_addr_v4: 0,
-            source_port: pac.source_port,
-            destination_port: pac.destination_port,
-            destination_addr_v6: pac.destination_addr.to_bits(),
-            source_addr_v6: pac.source_addr.to_bits(),
-        };
-        send_log(&msg);
-        msg
-    }
-
-    pub fn send_from_v4(message: &str, pac: &ParseResultV4, level: u8) -> Self {
+    pub fn send_from(message: &str, pac: &ParseResult, level: u8) -> Self {
         let msg = Self {
             message: Self::str_to_u8(message),
             rule_id: 0,
@@ -110,12 +65,12 @@ impl LogMessage {
             output: pac.output,
             udp: pac.proto == IpProto::Udp,
             tcp: pac.proto == IpProto::Tcp,
-            destination_addr_v4: pac.destination_addr,
-            source_addr_v4: pac.source_addr,
+            destination_addr_v4: pac.destination_addr_v4,
+            source_addr_v4: pac.source_addr_v4,
             source_port: pac.source_port,
             destination_port: pac.destination_port,
-            destination_addr_v6: 0,
-            source_addr_v6: 0,
+            destination_addr_v6: pac.destination_addr_v6,
+            source_addr_v6: pac.destination_addr_v6,
         };
         send_log(&msg);
         msg

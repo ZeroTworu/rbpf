@@ -6,7 +6,7 @@ udp: false
 ok: false
 drop: true
 
-input: false
+input: true
 output: true
 
 v4: true
