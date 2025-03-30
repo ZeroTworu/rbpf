@@ -1,30 +1,4 @@
 interfaces:
   input:
-    - "enp5s0"
-    - "lo"
   output:
     - "enp5s0"
-    - "lo"
-v4:
-  input:
-    addresses:
-      - "217.65.3.0/24"
-      - "1.1.1.1"
-    ports:
-      - "5000-6000"
-  output:
-    addresses:
-      - "217.65.3.21:80"
-      - "217.65.3.21:443"
-      - "1.1.1.1"
-    ports:
-      - "5000"
-      - "5001"
-v6:
-  input:
-    addresses:
-      - "::1/24"
-    ports:
-  output:
-    addresses:
-    ports:

@@ -1,4 +1,4 @@
-name: "Ban opennet.ru"
+name: "Ban IPv6 localhost"
 
 tcp: true
 udp: false
@@ -7,13 +7,16 @@ ok: false
 drop: true
 
 input: true
-output: false
+output: true
 
-v4: true
+v4: false
 v6: true
 
-source_addr_v4: "217.65.3.21"
-destination_addr_v4: "217.65.3.21"
+source_addr_v4: ""
+destination_addr_v4: ""
+
+source_addr_v6: "::1/24"
+destination_addr_v6: "::1/8"
 
 source_port_start: 0
 source_port_end: 0

@@ -1,10 +1,11 @@
 use crate::events;
 use crate::events::LogMessage;
 use crate::ip::{ptr_at, ptr_at_xdp, TcContext};
-use crate::rules::{check_rule_v4, Action};
+use crate::rules::v4;
+use crate::rules::Action;
 use aya_ebpf::bindings::{xdp_action, TC_ACT_PIPE, TC_ACT_SHOT};
 use aya_ebpf::programs::XdpContext;
-use aya_log_ebpf::{debug, info, warn};
+use aya_log_ebpf::debug;
 use network_types::eth::EthHdr;
 use network_types::ip::{IpProto, Ipv4Hdr};
 use network_types::tcp::TcpHdr;
@@ -95,7 +96,7 @@ pub fn handle_ingress_v4(ctx: &XdpContext) -> Result<u32, ()> {
         ret.destination_port
     );
 
-    let (action, rule_id) = check_rule_v4(&ret);
+    let (action, rule_id) = v4::check_rule_v4(&ret);
     match action {
         Action::Ok => Ok(xdp_action::XDP_PASS),
         Action::Drop => {
@@ -120,7 +121,7 @@ pub fn handle_egress_v4(ctx: &TcContext) -> Result<i32, ()> {
         ret.destination_port
     );
 
-    let (action, rule_id) = check_rule_v4(&ret);
+    let (action, rule_id) = v4::check_rule_v4(&ret);
     match action {
         Action::Ok => Ok(TC_ACT_PIPE),
         Action::Drop => {

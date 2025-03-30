@@ -1,4 +1,5 @@
 use crate::ip::v4::ParseResultV4;
+use crate::ip::v6::ParseResultV6;
 use aya_ebpf::{macros::map, maps::HashMap};
 use network_types::ip::IpProto;
 
@@ -17,6 +18,9 @@ pub struct LogMessage {
     pub v6: bool,
     pub tcp: bool,
     pub udp: bool,
+
+    pub source_addr_v6: u128,
+    pub destination_addr_v6: u128,
 
     pub source_addr_v4: u32,
     pub destination_addr_v4: u32,
@@ -44,6 +48,52 @@ impl LogMessage {
             source_addr_v4: pac.source_addr,
             source_port: pac.source_port,
             destination_port: pac.destination_port,
+            destination_addr_v6: 0,
+            source_addr_v6: 0,
+        };
+        send_log(&msg);
+        msg
+    }
+
+    pub fn send_from_rule_v6(message: &str, rule_id: u32, pac: &ParseResultV6, level: u8) -> Self {
+        let msg = Self {
+            message: Self::str_to_u8(message),
+            rule_id,
+            level,
+            v4: true,
+            v6: false,
+            input: pac.input,
+            output: pac.output,
+            udp: pac.proto == IpProto::Udp,
+            tcp: pac.proto == IpProto::Tcp,
+            destination_addr_v4: 0,
+            source_addr_v4: 0,
+            source_port: pac.source_port,
+            destination_port: pac.destination_port,
+            destination_addr_v6: pac.destination_addr.to_bits(),
+            source_addr_v6: pac.source_addr.to_bits(),
+        };
+        send_log(&msg);
+        msg
+    }
+
+    pub fn send_from_v6(message: &str, pac: &ParseResultV6, level: u8) -> Self {
+        let msg = Self {
+            message: Self::str_to_u8(message),
+            rule_id: 0,
+            level,
+            v4: false,
+            v6: true,
+            input: pac.input,
+            output: pac.output,
+            udp: pac.proto == IpProto::Udp,
+            tcp: pac.proto == IpProto::Tcp,
+            destination_addr_v4: 0,
+            source_addr_v4: 0,
+            source_port: pac.source_port,
+            destination_port: pac.destination_port,
+            destination_addr_v6: pac.destination_addr.to_bits(),
+            source_addr_v6: pac.source_addr.to_bits(),
         };
         send_log(&msg);
         msg
@@ -64,6 +114,8 @@ impl LogMessage {
             source_addr_v4: pac.source_addr,
             source_port: pac.source_port,
             destination_port: pac.destination_port,
+            destination_addr_v6: 0,
+            source_addr_v6: 0,
         };
         send_log(&msg);
         msg
@@ -77,12 +129,12 @@ impl LogMessage {
 }
 
 #[map]
-static mut EVENTS: HashMap<u32, LogMessage> = HashMap::with_max_entries(65535, 0);
+static mut EVENTS: HashMap<u32, LogMessage> = HashMap::with_max_entries(1, 0);
 
 pub fn send_log(msg: &LogMessage) -> i32 {
     let i: &u32 = &0;
     unsafe {
-        if EVENTS.insert(&i, msg, 0).is_err() {
+        if EVENTS.insert(i, msg, 0).is_err() {
             return 1;
         }
         0

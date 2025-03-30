@@ -4,7 +4,7 @@ use log::info;
 use rand::Rng;
 use std::collections::HashMap as RustHashMap;
 use std::fs::read_dir;
-use std::net::Ipv4Addr;
+use std::net::{Ipv4Addr, Ipv6Addr};
 use std::sync::Arc;
 use std::sync::LazyLock;
 use std::vec::Vec;
@@ -27,6 +27,8 @@ pub async fn get_rule_name(key: u32) -> Option<String> {
 
 const RULES_IN_V4: &str = "RULES_IN_V4";
 const RULES_OUT_V4: &str = "RULES_OUT_V4";
+const RULES_IN_V6: &str = "RULES_IN_V6";
+const RULES_OUT_V6: &str = "RULES_OUT_V6";
 
 struct RuleWithName {
     name: String,
@@ -43,6 +45,9 @@ pub struct Rule {
     pub tcp: bool,
     pub udp: bool,
 
+    pub source_addr_v6: u128,
+    pub destination_addr_v6: u128,
+
     pub source_addr_v4: u32,
     pub destination_addr_v4: u32,
     pub rule_id: u32,
@@ -55,12 +60,14 @@ pub struct Rule {
     pub input: bool,
     pub output: bool,
 
-    pub source_mask: u8,
-    pub destination_mask: u8,
+    pub source_mask_v4: u8,
+    pub destination_mask_v4: u8,
+    pub source_mask_v6: u8,
+    pub destination_mask_v6: u8,
 }
 unsafe impl Pod for Rule {}
 
-fn parse_network(addr: &str) -> (u32, u8) {
+fn parse_network_v4(addr: &str) -> (u32, u8) {
     if addr.is_empty() {
         return (0, 0);
     }
@@ -72,6 +79,20 @@ fn parse_network(addr: &str) -> (u32, u8) {
         );
     }
     (addr.parse::<Ipv4Addr>().unwrap().to_bits(), 0)
+}
+
+fn parse_network_v6(addr: &str) -> (u128, u8) {
+    if addr.is_empty() {
+        return (0, 0);
+    }
+    if addr.contains("/") {
+        let parts = addr.split("/").collect::<Vec<&str>>();
+        return (
+            parts[0].parse::<Ipv6Addr>().unwrap().to_bits(),
+            parts[1].parse::<u8>().unwrap(),
+        );
+    }
+    (addr.parse::<Ipv6Addr>().unwrap().to_bits(), 0)
 }
 
 impl Rule {
@@ -96,35 +117,54 @@ impl Rule {
         let saddrv4_ip = yaml["source_addr_v4"].as_str().unwrap();
         let daddrv4_ip = yaml["destination_addr_v4"].as_str().unwrap();
 
+        let saddrv6_ip = yaml["source_addr_v6"].as_str().unwrap();
+        let daddrv6_ip = yaml["destination_addr_v6"].as_str().unwrap();
+
         let source_port_start: u16 = yaml["source_port_start"].as_i64().unwrap() as u16;
         let source_port_end: u16 = yaml["source_port_end"].as_i64().unwrap() as u16;
 
         let destination_port_start: u16 = yaml["destination_port_start"].as_i64().unwrap() as u16;
         let destination_port_end: u16 = yaml["destination_port_end"].as_i64().unwrap() as u16;
 
-        let (source_addr_v4, source_mask) = parse_network(saddrv4_ip);
+        let (source_addr_v4, source_mask_v4) = parse_network_v4(saddrv4_ip);
+        let (destination_addr_v4, destination_mask_v4) = parse_network_v4(daddrv4_ip);
 
-        let (destination_addr_v4, destination_mask) = parse_network(daddrv4_ip);
+        let (source_addr_v6, source_mask_v6) = parse_network_v6(saddrv6_ip);
+        let (destination_addr_v6, destination_mask_v6) = parse_network_v6(daddrv6_ip);
         let rule_id: u32 = rand::rng().random();
 
         Self {
             drop,
             ok,
+
             v4,
             v6,
+
             tcp,
             udp,
+
             input,
             output,
+
             source_port_start,
             source_port_end,
+
             destination_port_start,
             destination_port_end,
+
             source_addr_v4,
             destination_addr_v4,
-            source_mask,
-            destination_mask,
+
+            source_mask_v4,
+            destination_mask_v4,
+
             rule_id,
+
+            destination_addr_v6,
+            source_addr_v6,
+
+            source_mask_v6,
+            destination_mask_v6,
         }
     }
 }
@@ -134,7 +174,17 @@ pub async fn load_rules(path: &str, ebpf: &mut Ebpf) -> anyhow::Result<()> {
     let mut rules: Vec<RuleWithName> = Vec::new();
 
     for path in paths {
-        let srule = read_to_string(path?.path()).await?;
+        let path = path?.path();
+        if !path
+            .file_name()
+            .unwrap()
+            .to_str()
+            .unwrap()
+            .ends_with(".yaml")
+        {
+            continue;
+        }
+        let srule = read_to_string(path).await?;
         let yrule = &YamlLoader::load_from_str(&srule)?[0];
         let name = yrule["name"].as_str().unwrap();
         let rule = Rule::new(yrule);
@@ -154,9 +204,10 @@ pub async fn load_rules(path: &str, ebpf: &mut Ebpf) -> anyhow::Result<()> {
             let uindex = u32::try_from(index)?;
             rules_input.insert(uindex, rule.rule, 0)?;
             set_rule_name(rule.rule.rule_id, rule.name.to_string()).await;
-            info!("Loading input rule: {}, index: {}", rule.name, index);
+            info!("Loading input rule IPv4: {}, index: {}", rule.name, index);
         }
     }
+
     {
         let mut rules_output: HashMap<_, u32, Rule> =
             HashMap::try_from(ebpf.map_mut(RULES_OUT_V4).unwrap())?;
@@ -168,7 +219,37 @@ pub async fn load_rules(path: &str, ebpf: &mut Ebpf) -> anyhow::Result<()> {
             let uindex = u32::try_from(index)?;
             rules_output.insert(uindex, rule.rule, 0)?;
             set_rule_name(rule.rule.rule_id, rule.name.to_string()).await;
-            info!("Loading output rule: {}, index: {}", rule.name, index);
+            info!("Loading output rule IPv4: {}, index: {}", rule.name, index);
+        }
+    }
+
+    {
+        let mut rules_output_v6: HashMap<_, u32, Rule> =
+            HashMap::try_from(ebpf.map_mut(RULES_OUT_V6).unwrap())?;
+        for (index, rule) in rules
+            .iter()
+            .filter(|r| r.rule.output && r.rule.v6)
+            .enumerate()
+        {
+            let uindex = u32::try_from(index)?;
+            rules_output_v6.insert(uindex, rule.rule, 0)?;
+            set_rule_name(rule.rule.rule_id, rule.name.to_string()).await;
+            info!("Loading output rule IPv6: {}, index: {}", rule.name, index);
+        }
+    }
+
+    {
+        let mut rules_input_v6: HashMap<_, u32, Rule> =
+            HashMap::try_from(ebpf.map_mut(RULES_IN_V6).unwrap())?;
+        for (index, rule) in rules
+            .iter()
+            .filter(|r| r.rule.input && r.rule.v6)
+            .enumerate()
+        {
+            let uindex = u32::try_from(index)?;
+            rules_input_v6.insert(uindex, rule.rule, 0)?;
+            set_rule_name(rule.rule.rule_id, rule.name.to_string()).await;
+            info!("Loading input rule IPv6: {}, index: {}", rule.name, index);
         }
     }
 

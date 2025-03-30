@@ -1,0 +1,26 @@
+name: "Ban port range 4000-6000"
+
+tcp: true
+udp: false
+
+ok: false
+drop: true
+
+input: false
+output: true
+
+v4: true
+v6: true
+
+source_addr_v4: ""
+destination_addr_v4: ""
+
+source_addr_v6: ""
+destination_addr_v6: ""
+
+source_port_start: 4000
+source_port_end: 6000
+
+destination_port_start: 4000
+destination_port_end: 6000
+

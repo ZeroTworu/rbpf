@@ -1,0 +1,25 @@
+name: "Ban ya.ru"
+
+input: false
+output: true
+
+v4: true
+v6: false
+
+tcp: true
+udp: true
+
+ok: false
+drop: true
+
+source_addr_v4: ""
+destination_addr_v4: "77.88.55.0/24"
+
+source_addr_v6: ""
+destination_addr_v6: ""
+
+source_port_start: 0
+source_port_end: 0
+
+destination_port_start: 0
+destination_port_end: 0

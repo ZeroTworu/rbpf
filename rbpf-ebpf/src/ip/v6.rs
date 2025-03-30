@@ -1,7 +1,10 @@
+use crate::events::LogMessage;
 use crate::ip::{ptr_at, ptr_at_xdp, TcContext};
+use crate::rules::v6;
+use crate::{events, rules};
 use aya_ebpf::bindings::{xdp_action, TC_ACT_PIPE, TC_ACT_SHOT};
 use aya_ebpf::programs::XdpContext;
-use aya_log_ebpf::{debug, warn};
+use aya_log_ebpf::debug;
 use core::net::Ipv6Addr;
 use network_types::eth::EthHdr;
 use network_types::ip::{IpProto, Ipv6Hdr};
@@ -16,9 +19,12 @@ pub struct ParseResultV6 {
     pub source_addr: Ipv6Addr,
 
     pub proto: IpProto,
+
+    pub input: bool,
+    pub output: bool,
 }
 
-pub fn parse_v6(ctx: &TcContext) -> Result<ParseResultV6, ()> {
+pub fn parse_v6(ctx: &TcContext, input: bool) -> Result<ParseResultV6, ()> {
     let ipv6hdr: Ipv6Hdr = ctx.load(EthHdr::LEN).map_err(|_| ())?;
 
     let destination_addr = Ipv6Addr::from(unsafe { ipv6hdr.dst_addr.in6_u.u6_addr8 });
@@ -44,10 +50,12 @@ pub fn parse_v6(ctx: &TcContext) -> Result<ParseResultV6, ()> {
         source_addr,
         destination_addr,
         proto,
+        input,
+        output: !input,
     })
 }
 
-pub fn parse_v6_xdp(ctx: &XdpContext) -> Result<ParseResultV6, ()> {
+pub fn parse_v6_xdp(ctx: &XdpContext, input: bool) -> Result<ParseResultV6, ()> {
     let ipv6hdr: Ipv6Hdr = unsafe { *ptr_at_xdp(&ctx, EthHdr::LEN)? };
     let destination_addr = Ipv6Addr::from(unsafe { ipv6hdr.dst_addr.in6_u.u6_addr8 });
     let source_addr = Ipv6Addr::from(unsafe { ipv6hdr.src_addr.in6_u.u6_addr8 });
@@ -69,11 +77,13 @@ pub fn parse_v6_xdp(ctx: &XdpContext) -> Result<ParseResultV6, ()> {
         source_addr,
         destination_addr,
         proto,
+        input,
+        output: !input,
     })
 }
 
 pub fn handle_ingress_v6(ctx: &XdpContext) -> Result<u32, ()> {
-    let ret = match parse_v6_xdp(&ctx) {
+    let ret = match parse_v6_xdp(&ctx, true) {
         Ok(ret) => ret,
         Err(_) => return Ok(xdp_action::XDP_PASS),
     };
@@ -87,11 +97,19 @@ pub fn handle_ingress_v6(ctx: &XdpContext) -> Result<u32, ()> {
         ret.destination_port
     );
 
-    Ok(xdp_action::XDP_PASS)
+    let (action, rule_id) = v6::check_rule_v6(&ret);
+    match action {
+        rules::Action::Ok => Ok(xdp_action::XDP_PASS),
+        rules::Action::Drop => {
+            LogMessage::send_from_rule_v6("BAN", rule_id, &ret, events::WARN);
+            Ok(xdp_action::XDP_DROP)
+        }
+        rules::Action::Pipe => Ok(xdp_action::XDP_PASS),
+    }
 }
 
 pub fn handle_egress_v6(ctx: &TcContext) -> Result<i32, ()> {
-    let ret = match parse_v6(&ctx) {
+    let ret = match parse_v6(&ctx, false) {
         Ok(ret) => ret,
         Err(_) => return Ok(TC_ACT_PIPE),
     };
@@ -105,5 +123,13 @@ pub fn handle_egress_v6(ctx: &TcContext) -> Result<i32, ()> {
         ret.destination_port
     );
 
-    Ok(TC_ACT_PIPE)
+    let (action, rule_id) = v6::check_rule_v6(&ret);
+    match action {
+        rules::Action::Ok => Ok(TC_ACT_PIPE),
+        rules::Action::Drop => {
+            LogMessage::send_from_rule_v6("BAN", rule_id, &ret, events::WARN);
+            Ok(TC_ACT_SHOT)
+        }
+        rules::Action::Pipe => Ok(TC_ACT_PIPE),
+    }
 }

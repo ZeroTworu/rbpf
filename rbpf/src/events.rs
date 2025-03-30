@@ -3,8 +3,8 @@ use aya::maps::HashMap;
 use aya::Ebpf;
 use aya::Pod;
 use core::str::from_utf8;
-use log::{debug, error, info, warn};
-use std::net::Ipv4Addr;
+use log::info;
+use std::net::{Ipv4Addr, Ipv6Addr};
 use tokio::time::{sleep, Duration};
 
 const EVENTS: &str = "EVENTS";
@@ -20,6 +20,9 @@ pub struct LogMessage {
     pub v6: bool,
     pub tcp: bool,
     pub udp: bool,
+
+    pub source_addr_v6: u128,
+    pub destination_addr_v6: u128,
 
     pub source_addr_v4: u32,
     pub destination_addr_v4: u32,
@@ -42,15 +45,30 @@ impl LogMessage {
     async fn log(&self) -> String {
         let source_addr_v4 = Ipv4Addr::from(self.source_addr_v4);
         let destination_addr_v4 = Ipv4Addr::from(self.destination_addr_v4);
+        let source_addr_v6 = Ipv6Addr::from(self.source_addr_v6);
+        let destination_addr_v6 = Ipv6Addr::from(self.destination_addr_v6);
+
+        let s_ip = if source_addr_v4.is_unspecified() {
+            source_addr_v6.to_string()
+        } else {
+            source_addr_v4.to_string()
+        };
+
+        let d_ip = if destination_addr_v4.is_unspecified() {
+            destination_addr_v6.to_string()
+        } else {
+            destination_addr_v4.to_string()
+        };
+
         let info = if self.input {
             format!(
                 "INPUT: {}:{} -> {}:{}",
-                source_addr_v4, self.source_port, destination_addr_v4, self.destination_port
+                s_ip, self.source_port, d_ip, self.destination_port
             )
         } else {
             format!(
                 "OUTPUT: {}:{} -> {}:{}",
-                source_addr_v4, self.source_port, destination_addr_v4, self.destination_port
+                s_ip, self.source_port, d_ip, self.destination_port
             )
         };
 
@@ -65,6 +83,7 @@ impl LogMessage {
 }
 
 pub async fn log_listener(ebpf: &mut Ebpf) -> anyhow::Result<()> {
+    // TODO: Переделать на Ring*
     let mut events: HashMap<_, u32, LogMessage> = HashMap::try_from(ebpf.map_mut(EVENTS).unwrap())?;
     loop {
         let data = events.get(&0, 0);

@@ -72,7 +72,7 @@ async fn read_settings(ebpf: &mut Ebpf, opt: &Opt) -> anyhow::Result<()> {
                 info!("Append output listener to: {}", iface);
             }
         }
-        None => warn!("no output interfaces found"),
+        None => warn!("No output interfaces found"),
     }
 
     match interfaces["input"].as_vec() {
@@ -86,7 +86,7 @@ async fn read_settings(ebpf: &mut Ebpf, opt: &Opt) -> anyhow::Result<()> {
                 info!("Append input listener to: {}", iface);
             }
         }
-        None => warn!("no input interfaces found"),
+        None => warn!("No input interfaces found"),
     }
 
     Ok(())
