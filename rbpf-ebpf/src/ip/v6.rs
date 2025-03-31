@@ -1,14 +1,14 @@
 use crate::events::LogMessage;
-use crate::ip::{parse_tc, parse_xdp, TcContext};
+use crate::ip::ParseResult;
 use crate::rules::v6;
 use crate::{events, rules};
 use aya_ebpf::bindings::{xdp_action, TC_ACT_PIPE, TC_ACT_SHOT};
-use aya_ebpf::programs::XdpContext;
+use aya_ebpf::programs::{TcContext, XdpContext};
 use aya_log_ebpf::debug;
 use core::net::Ipv6Addr;
 
 pub fn handle_ingress_v6(ctx: &XdpContext) -> Result<u32, ()> {
-    let ret = match parse_xdp(&ctx, true, false) {
+    let ret = match ParseResult::from_xdp(ctx, false) {
         Ok(ret) => ret,
         Err(_) => return Ok(xdp_action::XDP_PASS),
     };
@@ -34,7 +34,7 @@ pub fn handle_ingress_v6(ctx: &XdpContext) -> Result<u32, ()> {
 }
 
 pub fn handle_egress_v6(ctx: &TcContext) -> Result<i32, ()> {
-    let ret = match parse_tc(&ctx, false, false) {
+    let ret = match ParseResult::from_tc(ctx, false) {
         Ok(ret) => ret,
         Err(_) => return Ok(TC_ACT_PIPE),
     };

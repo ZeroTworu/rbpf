@@ -6,13 +6,13 @@ udp: false
 ok: false
 drop: true
 
-input: true
+input: false
 output: true
 
 v4: true
 v6: false
 
-source_addr_v4: ""
+source_addr_v4: "217.65.3.21"
 destination_addr_v4: "217.65.3.21"
 
 source_addr_v6: ""

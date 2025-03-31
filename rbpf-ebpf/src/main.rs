@@ -7,7 +7,7 @@ use aya_ebpf::{
     programs::{TcContext, XdpContext},
 };
 use network_types::eth::{EthHdr, EtherType};
-use rbpf_ebpf::ip::ptr_at_xdp;
+use rbpf_ebpf::ip::ptr_at_u;
 use rbpf_ebpf::ip::v4::{handle_egress_v4, handle_ingress_v4};
 use rbpf_ebpf::ip::v6::{handle_egress_v6, handle_ingress_v6};
 
@@ -22,7 +22,7 @@ pub fn tc_ingress(ctx: XdpContext) -> u32 {
 }
 
 fn try_tc_ingress(ctx: XdpContext) -> Result<u32, ()> {
-    let ethhdr: EthHdr = unsafe { *ptr_at_xdp(&ctx, 0)? };
+    let ethhdr: EthHdr = unsafe { *ptr_at_u(ctx.data(), ctx.data_end(), 0)? };
 
     match ethhdr.ether_type {
         EtherType::Ipv4 => handle_ingress_v4(&ctx),
