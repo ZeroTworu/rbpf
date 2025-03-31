@@ -1,11 +1,13 @@
 use crate::rules::get_rule_name;
 use aya::maps::HashMap;
+use aya::maps::RingBuf;
 use aya::Ebpf;
 use aya::Pod;
 use core::net::IpAddr;
 use core::str::from_utf8;
 use libc::if_indextoname;
 use log::{debug, error, info, warn};
+use rbpf_common::LogMessage;
 use std::ffi::CStr;
 use std::net::{Ipv4Addr, Ipv6Addr};
 use tokio::time::{sleep, Duration};
@@ -16,39 +18,17 @@ use trust_dns_resolver::TokioAsyncResolver;
 
 const EVENTS: &str = "EVENTS";
 
-#[derive(Copy, Clone, Debug)]
-#[repr(C)]
-pub struct LogMessage {
-    pub message: [u8; 128],
-
-    pub input: bool,
-    pub output: bool,
-    pub v4: bool,
-    pub v6: bool,
-    pub tcp: bool,
-    pub udp: bool,
-
-    pub source_addr_v6: u128,
-    pub destination_addr_v6: u128,
-
-    pub source_addr_v4: u32,
-    pub destination_addr_v4: u32,
-    pub rule_id: u32,
-    pub ifindex: u32,
-
-    pub source_port: u16,
-    pub destination_port: u16,
-
-    pub level: u8,
+pub struct WLogMessage {
+    pub msg: LogMessage,
 }
 
-impl LogMessage {
+impl WLogMessage {
     pub fn iface(&self) -> String {
         let mut name_buf = [0u8; libc::IF_NAMESIZE];
         let name_ptr = name_buf.as_mut_ptr() as *mut i8;
 
         unsafe {
-            if if_indextoname(self.ifindex, name_ptr).is_null() {
+            if if_indextoname(self.msg.ifindex, name_ptr).is_null() {
                 String::from("*")
             } else {
                 CStr::from_ptr(name_ptr).to_string_lossy().into_owned()
@@ -70,27 +50,29 @@ impl LogMessage {
     }
 
     pub fn dest_v4(&self) -> Ipv4Addr {
-        Ipv4Addr::from(self.destination_addr_v4)
+        Ipv4Addr::from(self.msg.destination_addr_v4)
     }
     pub fn dest_v6(&self) -> Ipv6Addr {
-        Ipv6Addr::from(self.destination_addr_v6)
+        let dst_ip = ((self.msg.dst_ip_high as u128) << 64) | (self.msg.dst_ip_low as u128);
+        Ipv6Addr::from(dst_ip)
     }
     pub fn src_v4(&self) -> Ipv4Addr {
-        Ipv4Addr::from(self.source_addr_v4)
+        Ipv4Addr::from(self.msg.source_addr_v4)
     }
     pub fn src_v6(&self) -> Ipv6Addr {
-        Ipv6Addr::from(self.source_addr_v6)
+        let src_ip = ((self.msg.src_ip_high as u128) << 64) | (self.msg.src_ip_low as u128);
+        Ipv6Addr::from(src_ip)
     }
 
     pub async fn log(&self) -> String {
         self.resolve_dst_v4().await;
-        let s_ip = if self.v6 {
+        let s_ip = if self.msg.v6 {
             self.src_v6().to_string()
         } else {
             self.src_v4().to_string()
         };
 
-        let d_ip = if self.v6 {
+        let d_ip = if self.msg.v6 {
             self.dest_v6().to_string()
         } else {
             self.dest_v4().to_string()
@@ -99,16 +81,16 @@ impl LogMessage {
         let src_ptr = self.resolve_src_v4().await;
         let dst_ptr = self.resolve_dst_v4().await;
 
-        let info = if self.input {
+        let info = if self.msg.input {
             format!(
                 "INPUT: ({}) {} {}:{} -> {} {}:{}",
                 self.iface(),
                 src_ptr,
                 s_ip,
-                self.source_port,
+                self.msg.source_port,
                 dst_ptr,
                 d_ip,
-                self.destination_port
+                self.msg.destination_port
             )
         } else {
             format!(
@@ -116,20 +98,20 @@ impl LogMessage {
                 self.iface(),
                 src_ptr,
                 s_ip,
-                self.source_port,
+                self.msg.source_port,
                 dst_ptr,
                 d_ip,
-                self.destination_port
+                self.msg.destination_port
             )
         };
 
-        let msg = from_utf8(&self.message).unwrap_or_else(|_| "utf-8 decode error");
-        if self.rule_id != 0 {
-            let rule_name = get_rule_name(self.rule_id).await.unwrap();
-            return format!("{} {} by ({})", &info, &msg, &rule_name);
+        // let msg = from_utf8(&self.msg).unwrap_or_else(|_| "utf-8 decode error");
+        if self.msg.rule_id != 0 {
+            let rule_name = get_rule_name(self.msg.rule_id).await.unwrap();
+            return format!("{} {}", &info, &rule_name);
         }
 
-        format!("[{}] {}", &msg, &info)
+        info
     }
 
     fn resolver_to_str(&self, response: Result<ReverseLookup, ResolveError>) -> String {
@@ -145,30 +127,24 @@ impl LogMessage {
     }
 }
 
-unsafe impl Pod for LogMessage {}
-
 // Костыль что бы не заморачиваться с передачей enum eBPF -> userspace
 pub const DEBUG: u8 = 0;
 pub const INFO: u8 = 1;
 pub const WARN: u8 = 2;
 
 pub async fn log_listener(ebpf: &mut Ebpf) -> anyhow::Result<()> {
-    // TODO: Переделать на Ring*
-    let mut events: HashMap<_, u32, LogMessage> = HashMap::try_from(ebpf.map_mut(EVENTS).unwrap())?;
+    let mut ring = RingBuf::try_from(ebpf.map_mut(EVENTS).unwrap())?;
+
     loop {
-        let data = events.get(&0, 0);
-        match data {
-            Ok(log) => {
-                events.remove(&0)?;
-                match log.level {
-                    DEBUG => debug!("{}", log.log().await),
-                    INFO => info!("{}", log.log().await),
-                    WARN => warn!("{}", log.log().await),
-                    _ => error!("{}", log.log().await),
-                }
+        if let Some(item) = ring.next() {
+            let msg: LogMessage = unsafe { std::ptr::read_unaligned(item.as_ptr() as *const _) };
+            let msg_wrapper: WLogMessage = WLogMessage { msg };
+            match msg_wrapper.msg.level {
+                DEBUG => debug!("{}", msg_wrapper.log().await),
+                INFO => info!("{}", msg_wrapper.log().await),
+                WARN => warn!("{}", msg_wrapper.log().await),
+                _ => error!("{}", msg_wrapper.log().await),
             }
-            Err(_) => {}
         }
-        sleep(Duration::from_millis(5)).await;
     }
 }

@@ -104,7 +104,7 @@ impl ContextWrapper {
     }
 
     pub fn handle_as_tc(&self) ->  Result<i32, ()> {
-        let ethhdr: EthHdr = unsafe { *ptr_at_u(self.data(), self.data_end(), 0)? };
+        let ethhdr: EthHdr = unsafe { *ptr_at_u(self.data, self.data_end, 0)? };
         match ethhdr.ether_type {
             EtherType::Ipv4 => handle_egress_v4(&self),
             EtherType::Ipv6 => handle_egress_v6(&self),
@@ -112,7 +112,7 @@ impl ContextWrapper {
         }
     }
     pub fn handle_as_xdp(&self) -> Result<u32, ()> {
-        let ethhdr: EthHdr = unsafe { *ptr_at_u(self.data(), self.data_end(), 0)? };
+        let ethhdr: EthHdr = unsafe { *ptr_at_u(self.data, self.data_end, 0)? };
 
         match ethhdr.ether_type {
             EtherType::Ipv4 => handle_ingress_v4(&self),

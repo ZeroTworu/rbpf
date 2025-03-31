@@ -5,9 +5,8 @@ edition = "2021"
 
 [dependencies]
 aya-ebpf = { workspace = true }
-aya-log-ebpf = { workspace = true }
+rbpf-common = { path = "../rbpf-common"}
 network-types = "0.0.7"
-
 
 [build-dependencies]
 which = { workspace = true }
