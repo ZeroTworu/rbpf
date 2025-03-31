@@ -1,12 +1,14 @@
 name: "Ban opennet.ru"
 
+iface: "enp5s0"
+
 tcp: true
 udp: false
 
 ok: false
 drop: true
 
-input: false
+input: true
 output: true
 
 v4: true
@@ -23,4 +25,3 @@ source_port_end: 0
 
 destination_port_start: 0
 destination_port_end: 0
-

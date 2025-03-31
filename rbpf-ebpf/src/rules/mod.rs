@@ -1,5 +1,4 @@
-pub mod v4;
-pub mod v6;
+pub mod rule;
 
 use core::cmp::PartialEq;
 
@@ -19,6 +18,7 @@ pub struct Rule {
     pub source_addr_v4: u32,
     pub destination_addr_v4: u32,
     pub rule_id: u32,
+    pub ifindex: u32,
 
     pub source_port_start: u16,
     pub source_port_end: u16,
@@ -43,6 +43,22 @@ impl Rule {
             return Action::Ok;
         }
         Action::Pipe
+    }
+    pub fn is_source_v4_not_empty(&self) -> bool {
+        self.source_addr_v4 != 0 || self.source_port_start != 0 || self.source_port_end != 0
+    }
+    pub fn is_source_v6_not_empty(&self) -> bool {
+        self.source_addr_v6 != 0 || self.source_port_start != 0 || self.source_port_end != 0
+    }
+    pub fn is_destination_v4_not_empty(&self) -> bool {
+        self.destination_addr_v4 != 0
+            || self.destination_port_start != 0
+            || self.destination_port_end != 0
+    }
+    pub fn is_destination_v6_not_empty(&self) -> bool {
+        self.destination_addr_v6 != 0
+            || self.destination_port_start != 0
+            || self.destination_port_end != 0
     }
 }
 

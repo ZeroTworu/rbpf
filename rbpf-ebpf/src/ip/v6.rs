@@ -1,28 +1,18 @@
-use crate::events::LogMessage;
-use crate::ip::ParseResult;
-use crate::rules::v6;
+use crate::events::{LogMessage, DEBUG};
+use crate::ip::ContextWrapper;
+use crate::rules::rule;
 use crate::{events, rules};
 use aya_ebpf::bindings::{xdp_action, TC_ACT_PIPE, TC_ACT_SHOT};
-use aya_ebpf::programs::{TcContext, XdpContext};
-use aya_log_ebpf::debug;
-use core::net::Ipv6Addr;
 
-pub fn handle_ingress_v6(ctx: &XdpContext) -> Result<u32, ()> {
-    let ret = match ParseResult::from_xdp(ctx, false) {
+pub fn handle_ingress_v6(ctx: &ContextWrapper) -> Result<u32, ()> {
+    let ret = match ctx.to_parse_result(false, false) {
         Ok(ret) => ret,
         Err(_) => return Ok(xdp_action::XDP_PASS),
     };
 
-    debug!(
-        ctx,
-        "INPUT: {:i}:{} -> {:i}:{}",
-        Ipv6Addr::from(ret.source_addr_v6),
-        ret.source_port,
-        Ipv6Addr::from(ret.destination_addr_v6),
-        ret.destination_port
-    );
+    LogMessage::send_from("IN v6", &ret, DEBUG);
 
-    let (action, rule_id) = v6::check_rule_v6(&ret);
+    let (action, rule_id) = rule::check_rule(&ret);
     match action {
         rules::Action::Ok => Ok(xdp_action::XDP_PASS),
         rules::Action::Drop => {
@@ -33,22 +23,15 @@ pub fn handle_ingress_v6(ctx: &XdpContext) -> Result<u32, ()> {
     }
 }
 
-pub fn handle_egress_v6(ctx: &TcContext) -> Result<i32, ()> {
-    let ret = match ParseResult::from_tc(ctx, false) {
+pub fn handle_egress_v6(ctx: &ContextWrapper) -> Result<i32, ()> {
+    let ret = match ctx.to_parse_result(false, false) {
         Ok(ret) => ret,
         Err(_) => return Ok(TC_ACT_PIPE),
     };
 
-    debug!(
-        ctx,
-        "OUTPUT: {:i}:{} -> {:i}:{}",
-        Ipv6Addr::from(ret.source_addr_v6),
-        ret.source_port,
-        Ipv6Addr::from(ret.destination_addr_v6),
-        ret.destination_port
-    );
+    LogMessage::send_from("OUT v6", &ret, DEBUG);
 
-    let (action, rule_id) = v6::check_rule_v6(&ret);
+    let (action, rule_id) = rule::check_rule(&ret);
     match action {
         rules::Action::Ok => Ok(TC_ACT_PIPE),
         rules::Action::Drop => {

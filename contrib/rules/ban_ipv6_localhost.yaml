@@ -1,5 +1,7 @@
 name: "Ban IPv6 localhost"
 
+iface: "lo"
+
 tcp: true
 udp: false
 
@@ -15,12 +17,11 @@ v6: true
 source_addr_v4: ""
 destination_addr_v4: ""
 
-source_addr_v6: "::1"
-destination_addr_v6: "::1"
+source_addr_v6: ""
+destination_addr_v6: "::1/24"
 
 source_port_start: 0
 source_port_end: 0
 
 destination_port_start: 0
 destination_port_end: 0
-

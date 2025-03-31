@@ -1,8 +1,10 @@
 use aya::maps::HashMap;
 use aya::{Ebpf, Pod};
+use libc::if_nametoindex;
 use log::info;
 use rand::Rng;
 use std::collections::HashMap as RustHashMap;
+use std::ffi::CString;
 use std::fs::read_dir;
 use std::net::{Ipv4Addr, Ipv6Addr};
 use std::sync::Arc;
@@ -35,7 +37,7 @@ struct RuleWithName {
     rule: Rule,
 }
 
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, Debug)]
 #[repr(C)]
 pub struct Rule {
     pub drop: bool,
@@ -51,6 +53,7 @@ pub struct Rule {
     pub source_addr_v4: u32,
     pub destination_addr_v4: u32,
     pub rule_id: u32,
+    pub ifindex: u32,
 
     pub source_port_start: u16,
     pub source_port_end: u16,
@@ -95,13 +98,18 @@ fn parse_network_v6(addr: &str) -> (u128, u8) {
     (addr.parse::<Ipv6Addr>().unwrap().to_bits(), 0)
 }
 
+fn get_ifindex_by_name(name: &str) -> u32 {
+    if name.contains("*") {
+        return 0u32;
+    }
+    let c_iface_name = CString::new(name).unwrap();
+    let ifindex: u32 = unsafe { if_nametoindex(c_iface_name.as_ptr()) };
+    ifindex
+}
+
 impl Rule {
     pub fn new(yaml: &Yaml) -> Self {
         // TODO: А не так страшно можно?
-        let name = String::from(yaml["name"].as_str().unwrap());
-        let mut buffer = [0u8; 128];
-        buffer[..name.len()].copy_from_slice(name.as_bytes());
-
         let tcp = yaml["tcp"].as_bool().unwrap();
         let udp = yaml["udp"].as_bool().unwrap();
 
@@ -125,7 +133,8 @@ impl Rule {
 
         let destination_port_start: u16 = yaml["destination_port_start"].as_i64().unwrap() as u16;
         let destination_port_end: u16 = yaml["destination_port_end"].as_i64().unwrap() as u16;
-
+        let iface = yaml["iface"].as_str().unwrap();
+        let ifindex = get_ifindex_by_name(iface);
         let (source_addr_v4, source_mask_v4) = parse_network_v4(saddrv4_ip);
         let (destination_addr_v4, destination_mask_v4) = parse_network_v4(daddrv4_ip);
 
@@ -159,6 +168,8 @@ impl Rule {
             destination_mask_v4,
 
             rule_id,
+
+            ifindex,
 
             destination_addr_v6,
             source_addr_v6,

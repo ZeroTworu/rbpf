@@ -1,6 +1,8 @@
 name: "Ban ya.ru"
 
-input: false
+iface: "*"
+
+input: true
 output: true
 
 v4: true
@@ -12,8 +14,8 @@ udp: true
 ok: false
 drop: true
 
-source_addr_v4: ""
-destination_addr_v4: "77.88.55.0/24"
+source_addr_v4: "8.8.8.8"
+destination_addr_v4: "8.8.8.8"
 
 source_addr_v6: ""
 destination_addr_v6: ""

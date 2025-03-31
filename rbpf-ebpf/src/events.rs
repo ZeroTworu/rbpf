@@ -6,6 +6,9 @@ pub const DEBUG: u8 = 0;
 pub const INFO: u8 = 1;
 pub const WARN: u8 = 2;
 
+#[map]
+static mut EVENTS: HashMap<u32, LogMessage> = HashMap::with_max_entries(1, 0);
+
 #[derive(Copy, Clone)]
 #[repr(C)]
 pub struct LogMessage {
@@ -24,6 +27,7 @@ pub struct LogMessage {
     pub source_addr_v4: u32,
     pub destination_addr_v4: u32,
     pub rule_id: u32,
+    pub ifindex: u32,
 
     pub source_port: u16,
     pub destination_port: u16,
@@ -49,6 +53,7 @@ impl LogMessage {
             destination_port: pac.destination_port,
             destination_addr_v6: pac.destination_addr_v6,
             source_addr_v6: pac.destination_addr_v6,
+            ifindex: pac.ifindex,
         };
         send_log(&msg);
         msg
@@ -71,6 +76,7 @@ impl LogMessage {
             destination_port: pac.destination_port,
             destination_addr_v6: pac.destination_addr_v6,
             source_addr_v6: pac.destination_addr_v6,
+            ifindex: pac.ifindex,
         };
         send_log(&msg);
         msg
@@ -83,15 +89,12 @@ impl LogMessage {
     }
 }
 
-#[map]
-static mut EVENTS: HashMap<u32, LogMessage> = HashMap::with_max_entries(1, 0);
-
 pub fn send_log(msg: &LogMessage) -> i32 {
     let i: &u32 = &0;
     unsafe {
         if EVENTS.insert(i, msg, 0).is_err() {
             return 1;
         }
-        0
     }
+    0
 }
