@@ -16,7 +16,7 @@ pub fn handle_ingress_v4(ctx: &ContextWrapper) -> Result<u32, ()> {
     match action {
         Action::Ok => Ok(xdp_action::XDP_PASS),
         Action::Drop => {
-            WLogMessage::send_from_rule("BAN", rule_id, &ret, WARN);
+            WLogMessage::send_from_rule("BAN v4", rule_id, &ret, WARN);
             Ok(xdp_action::XDP_DROP)
         }
         Action::Pipe => Ok(xdp_action::XDP_PASS),
@@ -35,7 +35,7 @@ pub fn handle_egress_v4(ctx: &ContextWrapper) -> Result<i32, ()> {
     match action {
         Action::Ok => Ok(TC_ACT_PIPE),
         Action::Drop => {
-            WLogMessage::send_from_rule("BAN", rule_id, &ret, WARN);
+            WLogMessage::send_from_rule("BAN v4", rule_id, &ret, WARN);
             Ok(TC_ACT_SHOT)
         }
         Action::Pipe => Ok(TC_ACT_PIPE),

@@ -3,6 +3,7 @@
 #[derive(Copy, Clone, Debug)]
 #[repr(C)]
 pub struct LogMessage {
+    pub message: [u8; 128],
     pub input: bool,
     pub output: bool,
     pub v4: bool,

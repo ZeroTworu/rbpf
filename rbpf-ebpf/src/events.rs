@@ -27,10 +27,11 @@ impl WLogMessage {
 
         let msg = Self {
             msg: LogMessage {
+                message: Self::str_to_u8(message),
                 rule_id,
                 level,
-                v4: true,
-                v6: false,
+                v4: pac.v4,
+                v6: pac.v6,
                 input: pac.input,
                 output: pac.output,
                 udp: pac.proto == IpProto::Udp,
@@ -53,9 +54,10 @@ impl WLogMessage {
     pub fn send_from(message: &str, level: u8) -> Self {
         let msg = Self {
             msg: LogMessage {
+                message: Self::str_to_u8(message),
                 rule_id: 0,
                 level,
-                v4: true,
+                v4: false,
                 v6: false,
                 input: false,
                 output: false,

@@ -66,6 +66,7 @@ impl WLogMessage {
 
     pub async fn log(&self) -> String {
         self.resolve_dst_v4().await;
+
         let s_ip = if self.msg.v6 {
             self.src_v6().to_string()
         } else {
@@ -105,13 +106,13 @@ impl WLogMessage {
             )
         };
 
-        // let msg = from_utf8(&self.msg).unwrap_or_else(|_| "utf-8 decode error");
+        let msg = from_utf8(&self.msg.message).unwrap_or_else(|_| "utf-8 decode error");
         if self.msg.rule_id != 0 {
             let rule_name = get_rule_name(self.msg.rule_id).await.unwrap();
-            return format!("{} {}", &info, &rule_name);
+            return format!("[{}] {} {}", &msg, &info, &rule_name);
         }
 
-        info
+        format!("[{}] {}", &msg, &info)
     }
 
     fn resolver_to_str(&self, response: Result<ReverseLookup, ResolveError>) -> String {
