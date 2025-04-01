@@ -8,6 +8,8 @@ use log::{debug, error, info, warn};
 use rbpf_common::LogMessage;
 use std::ffi::CStr;
 use std::net::{Ipv4Addr, Ipv6Addr};
+use tokio::io::unix::AsyncFd;
+use tokio::sync::watch;
 use trust_dns_resolver::config::{ResolverConfig, ResolverOpts};
 use trust_dns_resolver::error::ResolveError;
 use trust_dns_resolver::lookup::ReverseLookup;
@@ -131,18 +133,39 @@ pub const INFO: u8 = 1;
 pub const WARN: u8 = 2;
 
 pub async fn log_listener(ebpf: &mut Ebpf) -> anyhow::Result<()> {
-    let mut ring = RingBuf::try_from(ebpf.map_mut(EVENTS).unwrap())?;
+    let ring = RingBuf::try_from(ebpf.take_map(EVENTS).unwrap())?;
+    let (_, rx) = watch::channel(false);
+    let task = tokio::spawn(async move {
+        let mut async_fd = AsyncFd::new(ring).unwrap();
 
-    loop {
-        if let Some(item) = ring.next() {
-            let msg: LogMessage = unsafe { std::ptr::read_unaligned(item.as_ptr() as *const _) };
-            let msg_wrapper: WLogMessage = WLogMessage { msg };
-            match msg_wrapper.msg.level {
-                DEBUG => debug!("{}", msg_wrapper.log().await),
-                INFO => info!("{}", msg_wrapper.log().await),
-                WARN => warn!("{}", msg_wrapper.log().await),
-                _ => error!("{}", msg_wrapper.log().await),
+        let mut rx = rx.clone();
+        loop {
+            tokio::select! {
+                _ = async_fd.readable_mut() => {
+                    let mut guard = async_fd.readable_mut().await.unwrap();
+                    let rb = guard.get_inner_mut();
+
+                    while let Some(read) = rb.next() {
+                        let msg: LogMessage = unsafe { std::ptr::read_unaligned(read.as_ptr() as *const _) };
+                        let msg_wrapper: WLogMessage = WLogMessage { msg };
+                        match msg_wrapper.msg.level {
+                            DEBUG => debug!("{}", msg_wrapper.log().await),
+                            INFO => info!("{}", msg_wrapper.log().await),
+                            WARN => warn!("{}", msg_wrapper.log().await),
+                            _ => error!("{}", msg_wrapper.log().await),
+                        }
+                    }
+
+                    guard.clear_ready();
+                },
+                _ = rx.changed() => {
+                    if *rx.borrow() {
+                        break;
+                    }
+                }
             }
         }
-    }
+    });
+    task.await?;
+    Ok(())
 }
