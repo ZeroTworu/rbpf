@@ -2,4 +2,4 @@
 pub mod ip;
 pub mod rules;
 
-pub mod events;
+pub mod logs;

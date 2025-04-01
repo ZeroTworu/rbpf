@@ -5,13 +5,10 @@ edition = "2021"
 
 [features]
 default = []
-user = ["aya", "serde", "serde_json", "poem-openapi"]
+user = ["aya"]
 
 [dependencies]
 aya = { workspace = true, optional = true }
-serde = { version = "1", features = ["derive"], optional = true }
-serde_json = { version = "1.0.140", optional = true }
-poem-openapi = { version = "5.1.12", features = ["swagger-ui"], optional = true }
 
 [lib]
 path = "src/lib.rs"

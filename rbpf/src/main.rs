@@ -36,7 +36,7 @@ async fn init_bpf() -> anyhow::Result<()> {
     }
 
     let settings = settings::read_settings(&mut ebpf).await?;
-    let logs_ring_buf = RingBuf::try_from(ebpf.take_map(logs::EVENTS).unwrap())?;
+    let logs_ring_buf = RingBuf::try_from(ebpf.take_map(logs::LOGS_RING_BUF).unwrap())?;
     spawn(logs::log_listener(
         logs_ring_buf,
         settings.resolve_ptr_records,

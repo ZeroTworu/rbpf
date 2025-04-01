@@ -43,8 +43,38 @@ const RULES_OUT_V6: &str = "RULES_OUT_V6";
 #[derive(Clone, Debug, Deserialize, Serialize, Object)]
 pub struct RuleWithName {
     pub name: String,
-    pub rule: Rule,
     pub uindex: u32,
+
+    pub drop: bool,
+    pub ok: bool,
+    pub v4: bool,
+    pub v6: bool,
+    pub tcp: bool,
+    pub udp: bool,
+    pub on: bool,
+
+    pub src_ip_high: u64,
+    pub src_ip_low: u64,
+    pub dst_ip_high: u64,
+    pub dst_ip_low: u64,
+
+    pub source_addr_v4: u32,
+    pub destination_addr_v4: u32,
+    pub rule_id: u32,
+    pub ifindex: u32,
+
+    pub source_port_start: u16,
+    pub source_port_end: u16,
+    pub destination_port_start: u16,
+    pub destination_port_end: u16,
+
+    pub input: bool,
+    pub output: bool,
+
+    pub source_mask_v4: u8,
+    pub destination_mask_v4: u8,
+    pub source_mask_v6: u8,
+    pub destination_mask_v6: u8,
 }
 
 fn parse_network_v4(addr: &str) -> (u32, u8) {
@@ -122,46 +152,92 @@ impl RuleWithName {
         let (destination_addr_v6, destination_mask_v6) = parse_network_v6(daddrv6_ip);
         let rule_id: u32 = rand::rng().random();
 
+        let src_ip_high: u64 = (source_addr_v6 >> 64) as u64;
+        let src_ip_low: u64 = source_addr_v6 as u64;
+
+        let dst_ip_high: u64 = (destination_addr_v6 >> 64) as u64;
+        let dst_ip_low: u64 = destination_addr_v6 as u64;
+
         Self {
             name: name.to_string(),
             uindex: 0,
-            rule: Rule {
-                drop,
-                ok,
 
-                v4,
-                v6,
+            drop,
+            ok,
 
-                tcp,
-                udp,
+            v4,
+            v6,
 
-                on,
+            tcp,
+            udp,
 
-                input,
-                output,
+            on,
 
-                source_port_start,
-                source_port_end,
+            input,
+            output,
 
-                destination_port_start,
-                destination_port_end,
+            source_port_start,
+            source_port_end,
 
-                source_addr_v4,
-                destination_addr_v4,
+            destination_port_start,
+            destination_port_end,
 
-                source_mask_v4,
-                destination_mask_v4,
+            source_addr_v4,
+            destination_addr_v4,
 
-                rule_id,
+            source_mask_v4,
+            destination_mask_v4,
 
-                ifindex,
+            rule_id,
 
-                destination_addr_v6,
-                source_addr_v6,
+            ifindex,
 
-                source_mask_v6,
-                destination_mask_v6,
-            },
+            src_ip_high,
+            src_ip_low,
+            dst_ip_high,
+            dst_ip_low,
+
+            source_mask_v6,
+            destination_mask_v6,
+        }
+    }
+
+    pub fn to_common_rules(&self) -> Rule {
+        Rule{
+            source_port_end: self.source_port_end,
+            source_port_start: self.source_port_start,
+
+            destination_port_end: self.destination_port_end,
+            destination_port_start: self.destination_port_start,
+
+            drop: self.drop,
+
+            ok: self.ok,
+            on: self.on,
+
+            v4: self.v4,
+            v6: self.v6,
+
+            tcp: self.tcp,
+            udp: self.udp,
+
+            input: self.input,
+            output: self.output,
+
+            destination_mask_v4: self.destination_mask_v4,
+            destination_mask_v6: self.destination_mask_v6,
+
+            source_mask_v4: self.source_mask_v4,
+            source_mask_v6: self.source_mask_v6,
+
+            destination_addr_v4: self.source_addr_v4,
+            destination_addr_v6: ((self.dst_ip_high as u128) << 64) | (self.dst_ip_low as u128),
+
+            source_addr_v4: self.source_addr_v4,
+            source_addr_v6: ((self.src_ip_high as u128) << 64) | (self.src_ip_low as u128),
+
+            rule_id: self.rule_id,
+            ifindex: self.ifindex,
         }
     }
 }
@@ -191,13 +267,13 @@ pub async fn load_rules(path: &str, ebpf: &mut Ebpf) -> anyhow::Result<()> {
             HashMap::try_from(ebpf.map_mut(RULES_IN_V4).unwrap())?;
         for (index, rule) in rules
             .iter_mut()
-            .filter(|r| r.rule.input && r.rule.v4)
+            .filter(|r| r.input && r.v4)
             .enumerate()
         {
             let uindex = u32::try_from(index)?;
-            rules_input.insert(uindex, rule.rule, 0)?;
+            rules_input.insert(uindex, rule.to_common_rules(), 0)?;
             rule.uindex = uindex;
-            set_rule_name(rule.rule.rule_id, rule.clone()).await;
+            set_rule_name(rule.rule_id, rule.clone()).await;
             info!("Loading input rule IPv4: {}, index: {}", rule.name, index);
         }
     }
@@ -207,13 +283,13 @@ pub async fn load_rules(path: &str, ebpf: &mut Ebpf) -> anyhow::Result<()> {
             HashMap::try_from(ebpf.map_mut(RULES_OUT_V4).unwrap())?;
         for (index, rule) in rules
             .iter_mut()
-            .filter(|r| r.rule.output && r.rule.v4)
+            .filter(|r| r.output && r.v4)
             .enumerate()
         {
             let uindex = u32::try_from(index)?;
-            rules_output.insert(uindex, rule.rule, 0)?;
+            rules_output.insert(uindex, rule.to_common_rules(), 0)?;
             rule.uindex = uindex;
-            set_rule_name(rule.rule.rule_id, rule.clone()).await;
+            set_rule_name(rule.rule_id, rule.clone()).await;
             info!("Loading output rule IPv4: {}, index: {}", rule.name, index);
         }
     }
@@ -223,12 +299,12 @@ pub async fn load_rules(path: &str, ebpf: &mut Ebpf) -> anyhow::Result<()> {
             HashMap::try_from(ebpf.map_mut(RULES_OUT_V6).unwrap())?;
         for (index, rule) in rules
             .iter_mut()
-            .filter(|r| r.rule.output && r.rule.v6)
+            .filter(|r| r.output && r.v6)
             .enumerate()
         {
             let uindex = u32::try_from(index)?;
-            rules_output_v6.insert(uindex, rule.rule, 0)?;
-            set_rule_name(rule.rule.rule_id, rule.clone()).await;
+            rules_output_v6.insert(uindex, rule.to_common_rules(), 0)?;
+            set_rule_name(rule.rule_id, rule.clone()).await;
             rule.uindex = uindex;
             info!("Loading output rule IPv6: {}, index: {}", rule.name, index);
         }
@@ -239,13 +315,13 @@ pub async fn load_rules(path: &str, ebpf: &mut Ebpf) -> anyhow::Result<()> {
             HashMap::try_from(ebpf.map_mut(RULES_IN_V6).unwrap())?;
         for (index, rule) in rules
             .iter_mut()
-            .filter(|r| r.rule.input && r.rule.v6)
+            .filter(|r| r.input && r.v6)
             .enumerate()
         {
             let uindex = u32::try_from(index)?;
-            rules_input_v6.insert(uindex, rule.rule, 0)?;
+            rules_input_v6.insert(uindex, rule.to_common_rules(), 0)?;
             rule.uindex = uindex;
-            set_rule_name(rule.rule.rule_id, rule.clone()).await;
+            set_rule_name(rule.rule_id, rule.clone()).await;
             info!("Loading input rule IPv6: {}, index: {}", rule.name, index);
         }
     }

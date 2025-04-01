@@ -8,7 +8,7 @@ pub const DEBUG: u8 = 0;
 pub const INFO: u8 = 1;
 pub const WARN: u8 = 2;
 #[map]
-static mut EVENTS: RingBuf = RingBuf::with_byte_size(512 * 1024, 0);
+static mut LOGS_RING_BUF: RingBuf = RingBuf::with_byte_size(512 * 1024, 0);
 
 #[derive(Copy, Clone)]
 #[repr(C)]
@@ -86,7 +86,7 @@ impl WLogMessage {
 
 pub fn send_log(msg: LogMessage) {
     unsafe {
-        if let Some(mut buf) = EVENTS.reserve::<LogMessage>(0) {
+        if let Some(mut buf) = LOGS_RING_BUF.reserve::<LogMessage>(0) {
             buf.write(msg);
             buf.submit(0);
         }

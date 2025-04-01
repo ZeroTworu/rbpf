@@ -1456,9 +1456,6 @@ name = "rbpf-common"
 version = "0.1.0"
 dependencies = [
  "aya",
- "poem-openapi",
- "serde",
- "serde_json",
 ]
 
 [[package]]

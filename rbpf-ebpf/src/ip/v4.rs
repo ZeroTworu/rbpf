@@ -1,4 +1,4 @@
-use crate::events::{WLogMessage, DEBUG, WARN};
+use crate::logs::{WLogMessage, DEBUG, WARN};
 use crate::ip::ContextWrapper;
 use crate::rules::rule;
 use crate::rules::Action;

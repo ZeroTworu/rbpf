@@ -16,7 +16,7 @@ use trust_dns_resolver::error::ResolveError;
 use trust_dns_resolver::lookup::ReverseLookup;
 use trust_dns_resolver::TokioAsyncResolver;
 
-pub const EVENTS: &str = "EVENTS";
+pub const LOGS_RING_BUF: &str = "LOGS_RING_BUF";
 
 static DNS_CACHE: LazyLock<Arc<RwLock<HashMap<String, String>>>> =
     LazyLock::new(|| Arc::new(RwLock::new(HashMap::new())));
