@@ -1,5 +1,5 @@
-use crate::logs::{WLogMessage, DEBUG, WARN};
 use crate::ip::ContextWrapper;
+use crate::logs::{WLogMessage, DEBUG, WARN};
 use crate::rules::rule;
 use crate::rules::Action;
 use aya_ebpf::bindings::{xdp_action, TC_ACT_PIPE, TC_ACT_SHOT};

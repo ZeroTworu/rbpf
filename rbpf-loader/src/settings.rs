@@ -7,16 +7,16 @@ use tokio::fs::read_to_string;
 use yaml_rust2::YamlLoader;
 
 pub struct Settings {
-    pub http_api_on: bool,
     pub resolve_ptr_records: bool,
-    pub http_addr: String,
-    pub http_port: u16,
+    pub control_on: bool,
     pub rules_path: String,
+    pub control_socket_path: String,
+    pub control_socket_owner: String,
 }
 
 #[derive(Debug, Parser)]
 pub struct Opt {
-    #[clap(short, long, default_value = "./settings.yaml")]
+    #[clap(short, long, default_value = "./settings/main.yaml")]
     cfg: String,
     #[clap(short, long, default_value = "./rules/")]
     rules: String,
@@ -28,14 +28,17 @@ pub async fn read_settings(ebpf: &mut Ebpf) -> anyhow::Result<Settings> {
     let yaml = read_to_string(&opt.cfg).await?;
     let settings = YamlLoader::load_from_str(&yaml)?;
     rules::load_rules(&opt.rules, ebpf).await?;
-    let http = &settings[0]["http_api"];
+    let control = &settings[0]["control"];
 
     let settings_struct = Settings {
-        http_api_on: http["on"].as_bool().unwrap(),
-        http_addr: http["addr"].as_str().unwrap().to_string(),
-        http_port: http["port"].as_i64().unwrap() as u16,
         resolve_ptr_records: (&settings[0])["resolve_ptr_records"].as_bool().unwrap(),
         rules_path: opt.rules,
+        control_socket_path: control["control_socket_path"].as_str().unwrap().to_string(),
+        control_socket_owner: control["control_socket_owner"]
+            .as_str()
+            .unwrap()
+            .to_string(),
+        control_on: control["on"].as_bool().unwrap(),
     };
 
     // TODO: Придумать как это красиво убрать в отдельный лоадер

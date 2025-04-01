@@ -1,6 +1,6 @@
 [package]
-name = "rbpf"
-version = "0.2.0"
+name = "rbpf-loader"
+version = "0.2.1"
 edition = "2021"
 
 [features]
@@ -23,6 +23,8 @@ poem = "3.1.8"
 poem-openapi = { version = "5.1.12", features = ["swagger-ui"] }
 serde = { version = "1", features = ["derive"] }
 rbpf-common = { path = "../rbpf-common", features=["user"]}
+nix = "0.29.0"
+serde_json = "1.0.140"
 
 
 [build-dependencies]
@@ -30,6 +32,7 @@ anyhow = { workspace = true }
 aya-build = { workspace = true }
 rbpf-ebpf = { path = "../rbpf-ebpf" }
 
+
 [[bin]]
-name = "rbpf"
+name = "rbpf_loader"
 path = "src/main.rs"

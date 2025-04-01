@@ -1,7 +1,7 @@
 [workspace]
 resolver = "2"
-members = ["rbpf", "rbpf-ebpf", "rbpf-common"]
-default-members = ["rbpf", "rbpf-common"]
+members = ["rbpf-loader", "rbpf-ebpf", "rbpf-common", "rbpf-http"]
+default-members = ["rbpf-loader", "rbpf-common", "rbpf-http"]
 
 [workspace.dependencies]
 aya = { version = "0.13.1", default-features = false }

@@ -1,11 +1,10 @@
 use aya::maps::RingBuf;
 use aya::Ebpf;
 use log::{debug, info, warn};
-use rbpf::control::{control_loop, Control};
-use rbpf::http;
-use rbpf::logs;
-use rbpf::settings;
-use tokio::sync::mpsc;
+use rbpf_loader::control;
+use rbpf_loader::logs;
+use rbpf_loader::settings;
+use tokio::signal::unix::{signal, SignalKind};
 use tokio::task::spawn;
 
 #[tokio::main]
@@ -25,7 +24,7 @@ async fn main() -> anyhow::Result<()> {
 }
 
 async fn init_bpf() -> anyhow::Result<()> {
-    println!("Initializing BPF program...");
+    info!("Initializing BPF program...");
 
     let mut ebpf = Ebpf::load(aya::include_bytes_aligned!(concat!(
         env!("OUT_DIR"),
@@ -41,11 +40,14 @@ async fn init_bpf() -> anyhow::Result<()> {
         logs_ring_buf,
         settings.resolve_ptr_records,
     ));
-    let (tx, mut rx) = mpsc::channel::<Control>(16);
-    if settings.http_api_on {
-        info!("Starting http server...");
-        spawn(http::api_server(tx, settings));
+    if settings.control_on {
+        control::control_loop(&settings, &mut ebpf).await?;
+    } else {
+        let mut sig = signal(SignalKind::terminate())?;
+        loop {
+            sig.recv().await;
+        }
     }
-    control_loop(&mut ebpf, &mut rx).await?;
+
     Ok(())
 }

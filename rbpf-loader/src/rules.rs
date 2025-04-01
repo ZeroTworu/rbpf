@@ -122,7 +122,7 @@ impl RuleWithName {
         let tcp = yaml["tcp"].as_bool().unwrap();
         let udp = yaml["udp"].as_bool().unwrap();
         let on = yaml["on"].as_bool().unwrap();
-        println!("name: {}, on: {}", name, on);
+
         let ok = yaml["ok"].as_bool().unwrap();
         let drop = yaml["drop"].as_bool().unwrap();
 
@@ -203,7 +203,7 @@ impl RuleWithName {
     }
 
     pub fn to_common_rules(&self) -> Rule {
-        Rule{
+        Rule {
             source_port_end: self.source_port_end,
             source_port_start: self.source_port_start,
 
@@ -265,11 +265,7 @@ pub async fn load_rules(path: &str, ebpf: &mut Ebpf) -> anyhow::Result<()> {
     {
         let mut rules_input: HashMap<_, u32, Rule> =
             HashMap::try_from(ebpf.map_mut(RULES_IN_V4).unwrap())?;
-        for (index, rule) in rules
-            .iter_mut()
-            .filter(|r| r.input && r.v4)
-            .enumerate()
-        {
+        for (index, rule) in rules.iter_mut().filter(|r| r.input && r.v4).enumerate() {
             let uindex = u32::try_from(index)?;
             rules_input.insert(uindex, rule.to_common_rules(), 0)?;
             rule.uindex = uindex;
@@ -281,11 +277,7 @@ pub async fn load_rules(path: &str, ebpf: &mut Ebpf) -> anyhow::Result<()> {
     {
         let mut rules_output: HashMap<_, u32, Rule> =
             HashMap::try_from(ebpf.map_mut(RULES_OUT_V4).unwrap())?;
-        for (index, rule) in rules
-            .iter_mut()
-            .filter(|r| r.output && r.v4)
-            .enumerate()
-        {
+        for (index, rule) in rules.iter_mut().filter(|r| r.output && r.v4).enumerate() {
             let uindex = u32::try_from(index)?;
             rules_output.insert(uindex, rule.to_common_rules(), 0)?;
             rule.uindex = uindex;
@@ -297,11 +289,7 @@ pub async fn load_rules(path: &str, ebpf: &mut Ebpf) -> anyhow::Result<()> {
     {
         let mut rules_output_v6: HashMap<_, u32, Rule> =
             HashMap::try_from(ebpf.map_mut(RULES_OUT_V6).unwrap())?;
-        for (index, rule) in rules
-            .iter_mut()
-            .filter(|r| r.output && r.v6)
-            .enumerate()
-        {
+        for (index, rule) in rules.iter_mut().filter(|r| r.output && r.v6).enumerate() {
             let uindex = u32::try_from(index)?;
             rules_output_v6.insert(uindex, rule.to_common_rules(), 0)?;
             set_rule_name(rule.rule_id, rule.clone()).await;
@@ -313,11 +301,7 @@ pub async fn load_rules(path: &str, ebpf: &mut Ebpf) -> anyhow::Result<()> {
     {
         let mut rules_input_v6: HashMap<_, u32, Rule> =
             HashMap::try_from(ebpf.map_mut(RULES_IN_V6).unwrap())?;
-        for (index, rule) in rules
-            .iter_mut()
-            .filter(|r| r.input && r.v6)
-            .enumerate()
-        {
+        for (index, rule) in rules.iter_mut().filter(|r| r.input && r.v6).enumerate() {
             let uindex = u32::try_from(index)?;
             rules_input_v6.insert(uindex, rule.to_common_rules(), 0)?;
             rule.uindex = uindex;

@@ -61,9 +61,20 @@ pub struct LogMessage {
 
 #[cfg(feature = "user")]
 pub mod user {
-    extern crate alloc;
     use super::*;
-
+    use serde::{Deserialize, Serialize};
     unsafe impl aya::Pod for LogMessage {}
     unsafe impl aya::Pod for Rule {}
+
+    #[derive(Debug, Clone, Serialize, Deserialize)]
+    pub struct Control {
+        pub action: ControlAction,
+    }
+
+    #[derive(Debug, Clone, Serialize, Deserialize)]
+    pub enum ControlAction {
+        Reload = 0,
+        GetRules = 1,
+        UpdateRule = 2,
+    }
 }

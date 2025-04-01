@@ -1,0 +1,32 @@
+[package]
+name = "rbpf-http"
+version = "0.2.1"
+edition = "2021"
+
+[features]
+default = []
+user = []
+
+[dependencies]
+anyhow = { workspace = true, default-features = true }
+env_logger = { workspace = true }
+log = { workspace = true }
+tokio = { workspace = true, features = ["full"] }
+clap = { workspace = true, features = ["derive"] }
+yaml-rust2 = "0.10.1"
+poem = "3.1.8"
+poem-openapi = { version = "5.1.12", features = ["swagger-ui"] }
+serde = { version = "1", features = ["derive"] }
+rbpf-common = { path = "../rbpf-common", features=["user"]}
+rbpf-loader = { path = "../rbpf-loader" }
+serde_json = "1.0.140"
+
+
+[build-dependencies]
+anyhow = { workspace = true }
+aya-build = { workspace = true }
+
+
+[[bin]]
+name = "rbpf_http"
+path = "src/main.rs"

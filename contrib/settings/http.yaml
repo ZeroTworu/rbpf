@@ -1,0 +1,4 @@
+http_api:
+  addr: "127.0.0.1"
+  port: 8080
+  control_socket_path: "/run/rbpf.sock"

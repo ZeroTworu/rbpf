@@ -1429,33 +1429,11 @@ dependencies = [
 ]
 
 [[package]]
-name = "rbpf"
-version = "0.2.0"
-dependencies = [
- "anyhow",
- "aya",
- "aya-build",
- "aya-log",
- "clap",
- "env_logger",
- "libc",
- "log",
- "poem",
- "poem-openapi",
- "rand 0.9.0",
- "rbpf-common",
- "rbpf-ebpf",
- "serde",
- "tokio",
- "trust-dns-resolver",
- "yaml-rust2",
-]
-
-[[package]]
 name = "rbpf-common"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "aya",
+ "serde",
 ]
 
 [[package]]
@@ -1466,6 +1444,50 @@ dependencies = [
  "network-types",
  "rbpf-common",
  "which",
+]
+
+[[package]]
+name = "rbpf-http"
+version = "0.2.1"
+dependencies = [
+ "anyhow",
+ "aya-build",
+ "clap",
+ "env_logger",
+ "log",
+ "poem",
+ "poem-openapi",
+ "rbpf-common",
+ "rbpf-loader",
+ "serde",
+ "serde_json",
+ "tokio",
+ "yaml-rust2",
+]
+
+[[package]]
+name = "rbpf-loader"
+version = "0.2.1"
+dependencies = [
+ "anyhow",
+ "aya",
+ "aya-build",
+ "aya-log",
+ "clap",
+ "env_logger",
+ "libc",
+ "log",
+ "nix",
+ "poem",
+ "poem-openapi",
+ "rand 0.9.0",
+ "rbpf-common",
+ "rbpf-ebpf",
+ "serde",
+ "serde_json",
+ "tokio",
+ "trust-dns-resolver",
+ "yaml-rust2",
 ]
 
 [[package]]

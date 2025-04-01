@@ -6,7 +6,7 @@ interfaces:
     - "enp5s0"
     - "lo"
 resolve_ptr_records: false
-http_api:
+control:
   on:  true
-  addr: "127.0.0.1"
-  port: 8080
+  control_socket_path: "/run/rbpf.sock"
+  control_socket_owner: "nobody"
