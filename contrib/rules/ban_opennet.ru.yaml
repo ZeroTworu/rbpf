@@ -5,6 +5,8 @@ iface: "enp5s0"
 tcp: true
 udp: false
 
+on: true
+
 ok: false
 drop: true
 

@@ -2,6 +2,8 @@ name: "Ban ya.ru"
 
 iface: "*"
 
+on: true
+
 input: true
 output: true
 

@@ -8,6 +8,7 @@ pub struct Rule {
     pub v6: bool,
     pub tcp: bool,
     pub udp: bool,
+    pub on: bool,
 
     pub source_addr_v6: u128,
     pub destination_addr_v6: u128,
@@ -69,8 +70,8 @@ pub mod user {
     use serde::ser::SerializeStruct;
     use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
-    use poem_openapi::registry::{MetaSchema, MetaSchemaRef};
-    use poem_openapi::types::{ParseFromJSON, ParseResult, ToJSON, Type};
+    use poem_openapi::types::{ParseFromJSON, ParseResult, ToJSON};
+    use poem_openapi::{registry::MetaSchema, registry::MetaSchemaRef, types::Type};
     use serde_json::Value;
 
     impl Type for Rule {
@@ -84,7 +85,71 @@ pub mod user {
         }
 
         fn schema_ref() -> MetaSchemaRef {
-            MetaSchemaRef::Inline(Box::new(MetaSchema::new("Rule")))
+            let mut schema = MetaSchema::new("object");
+
+            schema.properties.insert(0, ("drop", bool::schema_ref()));
+            schema.properties.insert(1, ("ok", bool::schema_ref()));
+            schema.properties.insert(2, ("v4", bool::schema_ref()));
+            schema.properties.insert(3, ("v6", bool::schema_ref()));
+            schema.properties.insert(4, ("tcp", bool::schema_ref()));
+            schema.properties.insert(5, ("udp", bool::schema_ref()));
+
+            schema.properties.insert(
+                6,
+                (
+                    "source_addr_v6",
+                    MetaSchemaRef::Inline(Box::new(MetaSchema::new("string"))),
+                ),
+            );
+            schema.properties.insert(
+                7,
+                (
+                    "destination_addr_v6",
+                    MetaSchemaRef::Inline(Box::new(MetaSchema::new("string"))),
+                ),
+            );
+            schema
+                .properties
+                .insert(8, ("source_addr_v4", u32::schema_ref()));
+            schema
+                .properties
+                .insert(9, ("destination_addr_v4", u32::schema_ref()));
+
+            schema.properties.insert(10, ("rule_id", u32::schema_ref()));
+            schema.properties.insert(11, ("ifindex", u32::schema_ref()));
+
+            schema
+                .properties
+                .insert(12, ("source_port_start", u16::schema_ref()));
+            schema
+                .properties
+                .insert(13, ("source_port_end", u16::schema_ref()));
+            schema
+                .properties
+                .insert(14, ("destination_port_start", u16::schema_ref()));
+            schema
+                .properties
+                .insert(15, ("destination_port_end", u16::schema_ref()));
+
+            schema.properties.insert(16, ("input", bool::schema_ref()));
+            schema.properties.insert(17, ("output", bool::schema_ref()));
+
+            schema
+                .properties
+                .insert(18, ("source_mask_v4", u8::schema_ref()));
+            schema
+                .properties
+                .insert(19, ("destination_mask_v4", u8::schema_ref()));
+            schema
+                .properties
+                .insert(20, ("source_mask_v6", u8::schema_ref()));
+            schema
+                .properties
+                .insert(21, ("destination_mask_v6", u8::schema_ref()));
+
+            schema.properties.insert(22, ("on", bool::schema_ref()));
+
+            MetaSchemaRef::Inline(Box::new(schema))
         }
         fn as_raw_value(&self) -> Option<&Self::RawValueType> {
             Some(self)
@@ -106,6 +171,7 @@ pub mod user {
                 "v6": self.v6,
                 "tcp": self.tcp,
                 "udp": self.udp,
+                "on": self.on,
                 "source_addr_v6": self.source_addr_v6,
                 "destination_addr_v6": self.destination_addr_v6,
                 "source_addr_v4": self.source_addr_v4,
@@ -153,6 +219,7 @@ pub mod user {
             s.serialize_field("v6", &self.v6)?;
             s.serialize_field("tcp", &self.tcp)?;
             s.serialize_field("udp", &self.udp)?;
+            s.serialize_field("on", &self.on)?;
 
             s.serialize_field("source_addr_v6", &self.source_addr_v6.to_be_bytes())?;
             s.serialize_field(
@@ -200,6 +267,9 @@ pub mod user {
                     V: SeqAccess<'de>,
                 {
                     Ok(Rule {
+                        on: seq
+                            .next_element()?
+                            .ok_or_else(|| de::Error::missing_field("on"))?,
                         drop: seq
                             .next_element()?
                             .ok_or_else(|| de::Error::missing_field("drop"))?,

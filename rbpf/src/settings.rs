@@ -9,10 +9,13 @@ use yaml_rust2::YamlLoader;
 pub struct Settings {
     pub http_api_on: bool,
     pub resolve_ptr_records: bool,
+    pub http_addr: String,
+    pub http_port: u16,
+    pub rules_path: String,
 }
 
 #[derive(Debug, Parser)]
-struct Opt {
+pub struct Opt {
     #[clap(short, long, default_value = "./settings.yaml")]
     cfg: String,
     #[clap(short, long, default_value = "./rules/")]
@@ -25,10 +28,16 @@ pub async fn read_settings(ebpf: &mut Ebpf) -> anyhow::Result<Settings> {
     let yaml = read_to_string(&opt.cfg).await?;
     let settings = YamlLoader::load_from_str(&yaml)?;
     rules::load_rules(&opt.rules, ebpf).await?;
+    let http = &settings[0]["http_api"];
+
     let settings_struct = Settings {
-        http_api_on: (&settings[0])["http_api"].as_bool().unwrap(),
+        http_api_on: http["on"].as_bool().unwrap(),
+        http_addr: http["addr"].as_str().unwrap().to_string(),
+        http_port: http["port"].as_i64().unwrap() as u16,
         resolve_ptr_records: (&settings[0])["resolve_ptr_records"].as_bool().unwrap(),
+        rules_path: opt.rules,
     };
+
     // TODO: Придумать как это красиво убрать в отдельный лоадер
     let interfaces = &settings[0]["interfaces"];
 

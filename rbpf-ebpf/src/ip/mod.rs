@@ -240,7 +240,8 @@ impl ParseResult {
     }
 
     pub fn not_my_rule(&self, rule: &WRule) -> bool {
-        (self.v4 && !rule.rule.v4)
+        !rule.rule.on
+            || (self.v4 && !rule.rule.v4)
             || (self.v6 && !rule.rule.v6)
             || (self.input && !rule.rule.input)
             || (self.output && !rule.rule.output)

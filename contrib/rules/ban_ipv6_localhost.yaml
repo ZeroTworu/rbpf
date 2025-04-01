@@ -2,6 +2,8 @@ name: "Ban IPv6 localhost"
 
 iface: "lo"
 
+on: true
+
 tcp: true
 udp: false
 

@@ -1,10 +1,11 @@
 use aya::maps::RingBuf;
 use aya::Ebpf;
-use log::{debug, warn};
-use rbpf::events;
-use rbpf::events::EVENTS;
+use log::{debug, info, warn};
+use rbpf::control::{control_loop, Control};
 use rbpf::http;
+use rbpf::logs;
 use rbpf::settings;
+use tokio::sync::mpsc;
 use tokio::task::spawn;
 
 #[tokio::main]
@@ -35,14 +36,16 @@ async fn init_bpf() -> anyhow::Result<()> {
     }
 
     let settings = settings::read_settings(&mut ebpf).await?;
-
-    println!("Waiting for logs...");
-
+    let logs_ring_buf = RingBuf::try_from(ebpf.take_map(logs::EVENTS).unwrap())?;
+    spawn(logs::log_listener(
+        logs_ring_buf,
+        settings.resolve_ptr_records,
+    ));
+    let (tx, mut rx) = mpsc::channel::<Control>(16);
     if settings.http_api_on {
-        spawn(http::api_server());
+        info!("Starting http server...");
+        spawn(http::api_server(tx, settings));
     }
-
-    let logs_ring_buf = RingBuf::try_from(ebpf.take_map(EVENTS).unwrap())?;
-    events::log_listener(logs_ring_buf, settings.resolve_ptr_records).await?;
+    control_loop(&mut ebpf, &mut rx).await?;
     Ok(())
 }

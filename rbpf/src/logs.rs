@@ -5,16 +5,21 @@ use core::str::from_utf8;
 use libc::if_indextoname;
 use log::{debug, error, info, warn};
 use rbpf_common::LogMessage;
+use std::collections::HashMap;
 use std::ffi::CStr;
 use std::net::{Ipv4Addr, Ipv6Addr};
+use std::sync::{Arc, LazyLock};
 use tokio::io::unix::AsyncFd;
-use tokio::sync::watch;
+use tokio::sync::{watch, RwLock};
 use trust_dns_resolver::config::{ResolverConfig, ResolverOpts};
 use trust_dns_resolver::error::ResolveError;
 use trust_dns_resolver::lookup::ReverseLookup;
 use trust_dns_resolver::TokioAsyncResolver;
 
 pub const EVENTS: &str = "EVENTS";
+
+static DNS_CACHE: LazyLock<Arc<RwLock<HashMap<String, String>>>> =
+    LazyLock::new(|| Arc::new(RwLock::new(HashMap::new())));
 
 pub struct WLogMessage {
     pub msg: LogMessage,
@@ -34,17 +39,33 @@ impl WLogMessage {
         }
     }
     pub async fn resolve_dst_v4(&self) -> String {
-        let resolver =
-            TokioAsyncResolver::tokio(ResolverConfig::default(), ResolverOpts::default());
-        let response = resolver.reverse_lookup(IpAddr::from(self.dest_v4())).await;
-        self.resolver_to_str(response)
+        let store = DNS_CACHE.read().await;
+        let dst_addr = self.dest_v4().to_string();
+
+        match store.get(&dst_addr).cloned() {
+            Some(addr) => addr,
+            None => {
+                let resolver =
+                    TokioAsyncResolver::tokio(ResolverConfig::default(), ResolverOpts::default());
+                let response = resolver.reverse_lookup(IpAddr::from(self.dest_v4())).await;
+                self.resolver_to_str(response, dst_addr).await
+            }
+        }
     }
 
     pub async fn resolve_src_v4(&self) -> String {
-        let resolver =
-            TokioAsyncResolver::tokio(ResolverConfig::default(), ResolverOpts::default());
-        let response = resolver.reverse_lookup(IpAddr::from(self.src_v4())).await;
-        self.resolver_to_str(response)
+        let store = DNS_CACHE.read().await;
+        let str_addr = self.src_v4().to_string();
+
+        match store.get(&str_addr).cloned() {
+            Some(addr) => addr,
+            None => {
+                let resolver =
+                    TokioAsyncResolver::tokio(ResolverConfig::default(), ResolverOpts::default());
+                let response = resolver.reverse_lookup(IpAddr::from(self.src_v4())).await;
+                self.resolver_to_str(response, str_addr).await
+            }
+        }
     }
 
     pub fn dest_v4(&self) -> Ipv4Addr {
@@ -114,15 +135,23 @@ impl WLogMessage {
         format!("[{}] {}", &msg, &info)
     }
 
-    fn resolver_to_str(&self, response: Result<ReverseLookup, ResolveError>) -> String {
-        if let Some(name) = response.iter().next() {
-            let names: Vec<String> = name
-                .iter()
-                .map(|name| name.to_utf8())
-                .collect::<Vec<String>>();
-            names.get(0).unwrap().to_string()
-        } else {
-            "".to_string()
+    async fn resolver_to_str(
+        &self,
+        response: Result<ReverseLookup, ResolveError>,
+        key: String,
+    ) -> String {
+        match response {
+            Ok(name) => {
+                let mut store = DNS_CACHE.write().await;
+                let names: Vec<String> = name
+                    .iter()
+                    .map(|name| name.to_utf8())
+                    .collect::<Vec<String>>();
+                let ptr = names.get(0).unwrap().to_string();
+                store.insert(key, ptr.clone());
+                ptr
+            }
+            Err(_) => "".to_string(),
         }
     }
 }
@@ -134,6 +163,7 @@ pub const WARN: u8 = 2;
 
 pub async fn log_listener(ring: RingBuf<MapData>, resolve_ptr_records: bool) -> anyhow::Result<()> {
     let (_, rx) = watch::channel(false);
+    info!("Starting log listener...");
     let task = tokio::spawn(async move {
         let mut async_fd = AsyncFd::new(ring).unwrap();
 

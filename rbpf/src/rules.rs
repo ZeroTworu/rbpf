@@ -91,7 +91,8 @@ impl RuleWithName {
 
         let tcp = yaml["tcp"].as_bool().unwrap();
         let udp = yaml["udp"].as_bool().unwrap();
-
+        let on = yaml["on"].as_bool().unwrap();
+        println!("name: {}, on: {}", name, on);
         let ok = yaml["ok"].as_bool().unwrap();
         let drop = yaml["drop"].as_bool().unwrap();
 
@@ -133,6 +134,8 @@ impl RuleWithName {
 
                 tcp,
                 udp,
+
+                on,
 
                 input,
                 output,
