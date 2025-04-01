@@ -7,7 +7,7 @@ use aya_ebpf::{
     programs::{TcContext, XdpContext},
 };
 
-use rbpf_ebpf::ip::{ptr_at_u, ContextWrapper};
+use rbpf_ebpf::ip::ContextWrapper;
 
 #[classifier]
 pub fn tc_egress(ctx: TcContext) -> i32 {

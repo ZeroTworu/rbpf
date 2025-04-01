@@ -1,7 +1,6 @@
 use crate::ip::ParseResult;
 use aya_ebpf::macros::map;
 use aya_ebpf::maps::RingBuf;
-use core::hash::Hasher;
 use network_types::ip::IpProto;
 use rbpf_common::LogMessage;
 

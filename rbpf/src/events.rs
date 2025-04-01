@@ -1,6 +1,5 @@
 use crate::rules::get_rule_name;
-use aya::maps::RingBuf;
-use aya::Ebpf;
+use aya::maps::{MapData, RingBuf};
 use core::net::IpAddr;
 use core::str::from_utf8;
 use libc::if_indextoname;
@@ -15,7 +14,7 @@ use trust_dns_resolver::error::ResolveError;
 use trust_dns_resolver::lookup::ReverseLookup;
 use trust_dns_resolver::TokioAsyncResolver;
 
-const EVENTS: &str = "EVENTS";
+pub const EVENTS: &str = "EVENTS";
 
 pub struct WLogMessage {
     pub msg: LogMessage,
@@ -63,9 +62,7 @@ impl WLogMessage {
         Ipv6Addr::from(src_ip)
     }
 
-    pub async fn log(&self) -> String {
-        self.resolve_dst_v4().await;
-
+    pub async fn log(&self, resolve_ptr_records: bool) -> String {
         let s_ip = if self.msg.v6 {
             self.src_v6().to_string()
         } else {
@@ -78,8 +75,11 @@ impl WLogMessage {
             self.dest_v4().to_string()
         };
 
-        let src_ptr = self.resolve_src_v4().await;
-        let dst_ptr = self.resolve_dst_v4().await;
+        let (src_ptr, dst_ptr) = if resolve_ptr_records {
+            (self.resolve_src_v4().await, self.resolve_dst_v4().await)
+        } else {
+            ("".to_string(), "".to_string())
+        };
 
         let info = if self.msg.input {
             format!(
@@ -108,7 +108,7 @@ impl WLogMessage {
         let msg = from_utf8(&self.msg.message).unwrap_or_else(|_| "utf-8 decode error");
         if self.msg.rule_id != 0 {
             let rule_name = get_rule_name(self.msg.rule_id).await.unwrap();
-            return format!("[{}] {} {}", &msg, &info, &rule_name);
+            return format!("[{}] {} {}", &msg, &info, &rule_name.name);
         }
 
         format!("[{}] {}", &msg, &info)
@@ -132,8 +132,7 @@ pub const DEBUG: u8 = 0;
 pub const INFO: u8 = 1;
 pub const WARN: u8 = 2;
 
-pub async fn log_listener(ebpf: &mut Ebpf) -> anyhow::Result<()> {
-    let ring = RingBuf::try_from(ebpf.take_map(EVENTS).unwrap())?;
+pub async fn log_listener(ring: RingBuf<MapData>, resolve_ptr_records: bool) -> anyhow::Result<()> {
     let (_, rx) = watch::channel(false);
     let task = tokio::spawn(async move {
         let mut async_fd = AsyncFd::new(ring).unwrap();
@@ -149,10 +148,10 @@ pub async fn log_listener(ebpf: &mut Ebpf) -> anyhow::Result<()> {
                         let msg: LogMessage = unsafe { std::ptr::read_unaligned(read.as_ptr() as *const _) };
                         let msg_wrapper: WLogMessage = WLogMessage { msg };
                         match msg_wrapper.msg.level {
-                            DEBUG => debug!("{}", msg_wrapper.log().await),
-                            INFO => info!("{}", msg_wrapper.log().await),
-                            WARN => warn!("{}", msg_wrapper.log().await),
-                            _ => error!("{}", msg_wrapper.log().await),
+                            DEBUG => debug!("{}", msg_wrapper.log(resolve_ptr_records).await),
+                            INFO => info!("{}", msg_wrapper.log(resolve_ptr_records).await),
+                            WARN => warn!("{}", msg_wrapper.log(resolve_ptr_records).await),
+                            _ => error!("{}", msg_wrapper.log(resolve_ptr_records).await),
                         }
                     }
 

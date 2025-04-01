@@ -5,3 +5,5 @@ interfaces:
   output:
     - "enp5s0"
     - "lo"
+resolve_ptr_records: false
+http_api: true

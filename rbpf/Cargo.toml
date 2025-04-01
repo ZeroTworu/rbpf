@@ -14,12 +14,16 @@ aya-log = { workspace = true }
 env_logger = { workspace = true }
 libc = { workspace = true }
 log = { workspace = true }
-tokio = { workspace = true, features = ["macros", "rt", "rt-multi-thread", "net", "signal", "fs", "time", "sync"] }
+tokio = { workspace = true, features = ["full"] }
 clap = { workspace = true, features = ["derive"] }
 yaml-rust2 = "0.10.1"
 rand = "0.9.0"
 trust-dns-resolver = "0.23.2"
+poem = "3.1.8"
+poem-openapi = { version = "5.1.12", features = ["swagger-ui"] }
+serde = { version = "1", features = ["derive"] }
 rbpf-common = { path = "../rbpf-common", features=["user"]}
+
 
 [build-dependencies]
 anyhow = { workspace = true }

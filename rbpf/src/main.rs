@@ -1,20 +1,11 @@
-use aya::programs::{SchedClassifier, TcAttachType, Xdp, XdpFlags};
+use aya::maps::RingBuf;
 use aya::Ebpf;
-use clap::Parser;
-use log::{debug, info, warn};
-
+use log::{debug, warn};
 use rbpf::events;
-use rbpf::rules;
-use tokio::fs::read_to_string;
-use yaml_rust2::YamlLoader;
-
-#[derive(Debug, Parser)]
-struct Opt {
-    #[clap(short, long, default_value = "./settings.yaml")]
-    cfg: String,
-    #[clap(short, long, default_value = "./rules/")]
-    rules: String,
-}
+use rbpf::events::EVENTS;
+use rbpf::http;
+use rbpf::settings;
+use tokio::task::spawn;
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
@@ -35,8 +26,6 @@ async fn main() -> anyhow::Result<()> {
 async fn init_bpf() -> anyhow::Result<()> {
     println!("Initializing BPF program...");
 
-    let opt = Opt::parse();
-
     let mut ebpf = Ebpf::load(aya::include_bytes_aligned!(concat!(
         env!("OUT_DIR"),
         "/rbpf"
@@ -45,49 +34,15 @@ async fn init_bpf() -> anyhow::Result<()> {
         warn!("failed to initialize eBPF logger: {}", e);
     }
 
-    let _ = read_settings(&mut ebpf, &opt).await?;
+    let settings = settings::read_settings(&mut ebpf).await?;
 
     println!("Waiting for logs...");
-    events::log_listener(&mut ebpf).await?;
-    Ok(())
-}
 
-async fn read_settings(ebpf: &mut Ebpf, opt: &Opt) -> anyhow::Result<()> {
-    let yaml = read_to_string(&opt.cfg).await?;
-    let settings = YamlLoader::load_from_str(&yaml)?;
-
-    rules::load_rules(&opt.rules, ebpf).await?;
-
-    // TODO: Придумать как это красиво убрать в отдельный лоадер
-    let interfaces = &settings[0]["interfaces"];
-
-    match interfaces["output"].as_vec() {
-        Some(interfaces) => {
-            let program_egress: &mut SchedClassifier =
-                ebpf.program_mut("tc_egress").unwrap().try_into()?;
-            program_egress.load()?;
-            for iface in interfaces {
-                let iface = iface.as_str().unwrap();
-                program_egress.attach(&iface, TcAttachType::Egress)?;
-                info!("Append output listener to: {}", iface);
-            }
-        }
-        None => warn!("No output interfaces found"),
+    if settings.http_api_on {
+        spawn(http::api_server());
     }
 
-    match interfaces["input"].as_vec() {
-        Some(interfaces) => {
-            let program_ingress: &mut Xdp = ebpf.program_mut("tc_ingress").unwrap().try_into()?;
-            program_ingress.load()?;
-
-            for iface in interfaces {
-                let iface = iface.as_str().unwrap();
-                program_ingress.attach(&iface, XdpFlags::default())?;
-                info!("Append input listener to: {}", iface);
-            }
-        }
-        None => warn!("No input interfaces found"),
-    }
-
+    let logs_ring_buf = RingBuf::try_from(ebpf.take_map(EVENTS).unwrap())?;
+    events::log_listener(logs_ring_buf, settings.resolve_ptr_records).await?;
     Ok(())
 }
