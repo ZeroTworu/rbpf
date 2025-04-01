@@ -1,8 +1,9 @@
 use aya::maps::HashMap;
-use aya::{Ebpf, Pod};
+use aya::Ebpf;
 use libc::if_nametoindex;
 use log::info;
 use rand::Rng;
+use rbpf_common::Rule;
 use std::collections::HashMap as RustHashMap;
 use std::ffi::CString;
 use std::fs::read_dir;
@@ -36,39 +37,6 @@ struct RuleWithName {
     name: String,
     rule: Rule,
 }
-
-#[derive(Copy, Clone, Debug)]
-#[repr(C)]
-pub struct Rule {
-    pub drop: bool,
-    pub ok: bool,
-    pub v4: bool,
-    pub v6: bool,
-    pub tcp: bool,
-    pub udp: bool,
-
-    pub source_addr_v6: u128,
-    pub destination_addr_v6: u128,
-
-    pub source_addr_v4: u32,
-    pub destination_addr_v4: u32,
-    pub rule_id: u32,
-    pub ifindex: u32,
-
-    pub source_port_start: u16,
-    pub source_port_end: u16,
-    pub destination_port_start: u16,
-    pub destination_port_end: u16,
-
-    pub input: bool,
-    pub output: bool,
-
-    pub source_mask_v4: u8,
-    pub destination_mask_v4: u8,
-    pub source_mask_v6: u8,
-    pub destination_mask_v6: u8,
-}
-unsafe impl Pod for Rule {}
 
 fn parse_network_v4(addr: &str) -> (u32, u8) {
     if addr.is_empty() {
@@ -107,9 +75,11 @@ fn get_ifindex_by_name(name: &str) -> u32 {
     ifindex
 }
 
-impl Rule {
+impl RuleWithName {
     pub fn new(yaml: &Yaml) -> Self {
         // TODO: А не так страшно можно?
+        let name = yaml["name"].as_str().unwrap();
+
         let tcp = yaml["tcp"].as_bool().unwrap();
         let udp = yaml["udp"].as_bool().unwrap();
 
@@ -143,39 +113,42 @@ impl Rule {
         let rule_id: u32 = rand::rng().random();
 
         Self {
-            drop,
-            ok,
+            name: name.to_string(),
+            rule: Rule {
+                drop,
+                ok,
 
-            v4,
-            v6,
+                v4,
+                v6,
 
-            tcp,
-            udp,
+                tcp,
+                udp,
 
-            input,
-            output,
+                input,
+                output,
 
-            source_port_start,
-            source_port_end,
+                source_port_start,
+                source_port_end,
 
-            destination_port_start,
-            destination_port_end,
+                destination_port_start,
+                destination_port_end,
 
-            source_addr_v4,
-            destination_addr_v4,
+                source_addr_v4,
+                destination_addr_v4,
 
-            source_mask_v4,
-            destination_mask_v4,
+                source_mask_v4,
+                destination_mask_v4,
 
-            rule_id,
+                rule_id,
 
-            ifindex,
+                ifindex,
 
-            destination_addr_v6,
-            source_addr_v6,
+                destination_addr_v6,
+                source_addr_v6,
 
-            source_mask_v6,
-            destination_mask_v6,
+                source_mask_v6,
+                destination_mask_v6,
+            },
         }
     }
 }
@@ -197,12 +170,8 @@ pub async fn load_rules(path: &str, ebpf: &mut Ebpf) -> anyhow::Result<()> {
         }
         let srule = read_to_string(path).await?;
         let yrule = &YamlLoader::load_from_str(&srule)?[0];
-        let name = yrule["name"].as_str().unwrap();
-        let rule = Rule::new(yrule);
-        rules.push(RuleWithName {
-            name: String::from(name),
-            rule,
-        });
+        let rule = RuleWithName::new(yrule);
+        rules.push(rule);
     }
     {
         let mut rules_input: HashMap<_, u32, Rule> =

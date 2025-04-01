@@ -1,8 +1,6 @@
 use crate::rules::get_rule_name;
-use aya::maps::HashMap;
 use aya::maps::RingBuf;
 use aya::Ebpf;
-use aya::Pod;
 use core::net::IpAddr;
 use core::str::from_utf8;
 use libc::if_indextoname;
@@ -10,7 +8,6 @@ use log::{debug, error, info, warn};
 use rbpf_common::LogMessage;
 use std::ffi::CStr;
 use std::net::{Ipv4Addr, Ipv6Addr};
-use tokio::time::{sleep, Duration};
 use trust_dns_resolver::config::{ResolverConfig, ResolverOpts};
 use trust_dns_resolver::error::ResolveError;
 use trust_dns_resolver::lookup::ReverseLookup;

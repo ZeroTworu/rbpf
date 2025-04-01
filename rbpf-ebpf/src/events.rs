@@ -1,6 +1,6 @@
 use crate::ip::ParseResult;
-use aya_ebpf::maps::RingBuf;
 use aya_ebpf::macros::map;
+use aya_ebpf::maps::RingBuf;
 use core::hash::Hasher;
 use network_types::ip::IpProto;
 use rbpf_common::LogMessage;
@@ -20,10 +20,10 @@ pub struct WLogMessage {
 impl WLogMessage {
     pub fn send_from_rule(message: &str, rule_id: u32, pac: &ParseResult, level: u8) -> Self {
         let src_ip_high: u64 = (pac.source_addr_v6 >> 64) as u64;
-        let src_ip_low: u64 =  pac.source_addr_v6 as u64;
+        let src_ip_low: u64 = pac.source_addr_v6 as u64;
 
         let dst_ip_high: u64 = (pac.destination_addr_v6 >> 64) as u64;
-        let dst_ip_low: u64 =  pac.destination_addr_v6 as u64;
+        let dst_ip_low: u64 = pac.destination_addr_v6 as u64;
 
         let msg = Self {
             msg: LogMessage {
