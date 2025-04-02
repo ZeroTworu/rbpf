@@ -1,4 +1,4 @@
-name: "Ban ya.ru"
+name: "Allow Google DNS"
 
 iface: "*"
 
@@ -11,10 +11,10 @@ v4: true
 v6: false
 
 tcp: true
-udp: true
+udp: false
 
-ok: false
-drop: true
+ok: true
+drop: false
 
 source_addr_v4: "8.8.8.8"
 destination_addr_v4: "8.8.8.8"

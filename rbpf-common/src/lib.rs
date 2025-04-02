@@ -1,4 +1,11 @@
 #![no_std]
+
+
+// Костыль что бы не заморачиваться с передачей enum eBPF -> userspace
+pub const DEBUG: u8 = 0;
+pub const INFO: u8 = 1;
+pub const WARN: u8 = 2;
+pub const ERROR: u8 = 3;
 #[derive(Copy, Clone, Debug)]
 #[repr(C)]
 pub struct Rule {
@@ -62,8 +69,6 @@ pub struct LogMessage {
 #[cfg(feature = "user")]
 pub mod user {
     extern crate alloc;
-
-    use alloc::format;
     use super::*;
     use alloc::string::String;
     use core::net::{Ipv4Addr, Ipv6Addr};
@@ -91,6 +96,13 @@ pub mod user {
     }
 
     #[derive(Debug, Clone, Serialize, Deserialize)]
+    pub enum ActionType {
+        Ok = 0,
+        Drop = 1,
+        Pipe = 2,
+    }
+
+    #[derive(Debug, Clone, Serialize, Deserialize)]
     pub enum ProtocolVersionType {
         V4 = 0,
         V6 = 1,
@@ -115,16 +127,13 @@ pub mod user {
         pub destination_addr_v4: Ipv4Addr,
         pub rule_id: u32,
         pub if_name: String,
+        pub rule_name: String,
 
         pub source_port: u16,
         pub destination_port: u16,
 
         pub level: u8,
+        pub action: ActionType,
     }
 
-    impl LogMessageSerialized {
-        pub fn to_json(&self) -> String {
-            format!("{} {}", self.source_addr_v6, self.destination_addr_v4)
-        }
-    }
 }

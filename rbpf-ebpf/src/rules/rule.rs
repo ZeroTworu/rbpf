@@ -3,6 +3,7 @@ use crate::rules::{Action, WRule};
 use aya_ebpf::macros::map;
 use aya_ebpf::maps::HashMap;
 use rbpf_common::Rule;
+use crate::logs::WLogMessage;
 
 const MAX_ENTRIES: u32 = 128;
 

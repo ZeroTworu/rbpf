@@ -6,8 +6,8 @@ use core::net::IpAddr;
 use core::str::from_utf8;
 use libc::if_indextoname;
 use log::{debug, error, info, warn};
-use rbpf_common::user::{LogMessageSerialized, ProtocolType, ProtocolVersionType, TrafficType};
-use rbpf_common::LogMessage;
+use rbpf_common::user::{LogMessageSerialized, ProtocolType, ProtocolVersionType, TrafficType, ActionType};
+use rbpf_common::{LogMessage, INFO, DEBUG, WARN};
 use std::collections::HashMap;
 use std::ffi::CStr;
 use std::net::{Ipv4Addr, Ipv6Addr};
@@ -34,7 +34,26 @@ pub struct WLogMessage {
 }
 
 impl WLogMessage {
-    pub fn to_serialized(&self) -> LogMessageSerialized {
+    pub async fn to_serialized(&self) -> LogMessageSerialized {
+
+        let rule_name = if self.msg.rule_id != 0 {
+            match get_rule_name(self.msg.rule_id).await {
+                Some(rule) => rule.name,
+                None => "No rule for this ID".to_string()
+            }
+        } else {
+            "".to_string()
+        };
+
+        let rule_action = if self.msg.rule_id != 0 {
+            match get_rule_name(self.msg.rule_id).await {
+                Some(rule) => if rule.drop {ActionType::Drop} else {ActionType::Ok},
+                None => ActionType::Pipe
+            }
+        } else {
+            ActionType::Pipe
+        };
+
         LogMessageSerialized {
             traffic_type: if self.msg.input {
                 TrafficType::Input
@@ -51,7 +70,7 @@ impl WLogMessage {
             } else {
                 ProtocolVersionType::V6
             },
-
+            action:  rule_action,
             source_addr_v4: self.src_v4(),
             destination_addr_v4: self.dest_v4(),
 
@@ -62,6 +81,7 @@ impl WLogMessage {
             if_name: self.iface(),
             source_port: self.msg.source_port,
             destination_port: self.msg.destination_port,
+            rule_name,
         }
     }
     pub fn iface(&self) -> String {
@@ -194,10 +214,6 @@ impl WLogMessage {
     }
 }
 
-// Костыль что бы не заморачиваться с передачей enum eBPF -> userspace
-pub const DEBUG: u8 = 0;
-pub const INFO: u8 = 1;
-pub const WARN: u8 = 2;
 
 pub async fn log_listener(
     ring: RingBuf<MapData>,
@@ -250,12 +266,15 @@ pub async fn log_sender(settings: Arc<Settings>, rx: mpsc::Receiver<WLogMessage>
         if settings.logs_on {
             change_socket_owner(&settings.logs_socket_path, &settings.logs_socket_owner).unwrap();
             info!("Logs sock on {}", settings.logs_socket_path);
+        } else {
+            info!("Logs server is off.");
+            return;
         }
         loop {
             let (mut socket, _) = logs_listener.accept().await.unwrap();
             loop {
                 let msg = rx.recv().unwrap();
-                let serialized = serde_json::to_vec(&msg.to_serialized()).unwrap();
+                let serialized = serde_json::to_vec(&msg.to_serialized().await).unwrap();
                 let len = (serialized.len() as u32).to_be_bytes();
 
                 if socket.write_all(&len).await.is_err() {
@@ -266,6 +285,7 @@ pub async fn log_sender(settings: Arc<Settings>, rx: mpsc::Receiver<WLogMessage>
                     error!("Client disconnected when sending serialized message");
                     break;
                 }
+
             }
         }
     });

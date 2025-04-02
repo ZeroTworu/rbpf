@@ -1,6 +1,6 @@
-name: "Ban port range 1000-7000"
+name: "Ban port range 1000-2000"
 
-iface: "*"
+iface: "enp5s0"
 
 on: false
 
@@ -10,7 +10,7 @@ udp: false
 ok: false
 drop: true
 
-input: true
+input: false
 output: true
 
 v4: true
@@ -23,7 +23,7 @@ source_addr_v6: ""
 destination_addr_v6: ""
 
 source_port_start: 1000
-source_port_end: 7000
+source_port_end: 2000
 
 destination_port_start: 1000
-destination_port_end: 7000
+destination_port_end: 2000

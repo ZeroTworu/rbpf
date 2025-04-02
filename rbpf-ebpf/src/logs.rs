@@ -4,9 +4,6 @@ use aya_ebpf::maps::RingBuf;
 use network_types::ip::IpProto;
 use rbpf_common::LogMessage;
 
-pub const DEBUG: u8 = 0;
-pub const INFO: u8 = 1;
-pub const WARN: u8 = 2;
 #[map]
 static mut LOGS_RING_BUF: RingBuf = RingBuf::with_byte_size(512 * 1024, 0);
 

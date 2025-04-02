@@ -9,6 +9,7 @@
 * Для обработки входящих - `eXpress Data Path`.
 * Логирование целиком в `userspace`.
 * HTTP REST API для управления фаерволом.
+* Web UI
 
 #### Структура проекта:
 * `rbpf-common` - Общие структуры, которыми компоненты обмениваются через `BPF_MAPS` user space <-> eBPF (kernel space) или control Unix Socket. 
@@ -22,6 +23,19 @@
 
 
 * `rbpf-loader`- Модуль загружающий `rbpf-ebpf`, и обеспечивающий связь между user space и eBPF (kernel space). Может создавать Unix Socket для приёма команд.
+
+* `rbpf-ui` - Single Page Application написанное на Vue.js v3. Служит для вывода информации и управления eBPF модулем. 
+
+#### ![rbpf](assets/logs_table.png)
+
+#### Принцип работы
+
+##### Передача информации из ядра в браузер
+* `(eBPF module in kernel`) -> `(RingBuf)` -> `(loader module in root space)` -> `(unix socket)` -> `(HTTP module in user space)` -> `(web socket)` -> `(browser)`
+
+##### Передача информации из браузера в ядро
+* `(browser)` -> `(HTTP request)` -> `(HTTP module in user space)` -> `(unix socket)` -> `(loader module in root space)` -> `(BPF HASH MAP)` -> `(eBPF module in kernel`)
+
 #### Сборка и запуск:
 
 1. Установить [Rust](https://www.rust-lang.org/learn/get-started)

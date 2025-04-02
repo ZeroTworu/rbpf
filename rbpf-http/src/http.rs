@@ -7,7 +7,7 @@ use poem::{
     listener::TcpListener,
     web::{
         websocket::{Message, WebSocket},
-        Data, Html, Path,
+        Data, Path,
     },
     EndpointExt, IntoResponse, Route, Server,
 };
@@ -15,6 +15,7 @@ use poem_openapi::{payload::Json, OpenApi, OpenApiService};
 use rbpf_common::user::{Control, ControlAction, LogMessageSerialized};
 use rbpf_loader::rules::RuleWithName;
 use serde_json::from_slice;
+use rbpf_common::DEBUG;
 use std::collections::HashMap;
 use std::path::Path as FSPath;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
@@ -106,18 +107,22 @@ pub async fn logs_server(
     loop {
         let mut len_buf = [0u8; 4];
         if stream.read_exact(&mut len_buf).await.is_err() {
-            warn!("Server closed connection.1");
+            break Ok(());
         }
         let msg_len = u32::from_be_bytes(len_buf) as usize;
 
         let mut msg_buf = vec![0u8; msg_len];
         if stream.read_exact(&mut msg_buf).await.is_err() {
-            warn!("Server closed connection.2");
+            break Ok(());
         }
 
         let message: LogMessageSerialized = from_slice(&msg_buf)?;
-        if sender.receiver_count() > 0 {
-            let _ = sender.send(message);
+        if message.level > DEBUG {
+            match sender.send(message) {
+                Ok(_) => {},
+                Err(e) => println!("Broadcast error: {}", e),
+            }
+            tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
         }
     }
 }
@@ -129,80 +134,34 @@ pub async fn ws_logs(
 ) -> impl IntoResponse {
     let mut receiver = data.subscribe();
     ws.on_upgrade(move |socket| async move {
-        let (mut sink, _) = socket.split();
+        let (mut sink, mut stream) = socket.split();
         while let Ok(msg) = receiver.recv().await {
-            if let Err(e) = sink.send(Message::Text(serde_json::to_string(&msg).unwrap())).await {
-                println!("ERR WS closed connection.3: {:?}", e);
-                break;
+            match serde_json::to_string(&msg) {
+                Ok(json) => {
+                    if let Err(e) = sink.send(Message::Text(json)).await {
+                        break;
+                    }
+                }
+                Err(e) => println!("JSON serialization error: {:?}", e),
             }
         }
-        println!("WS closed connection.4");
     })
-}
-
-#[handler]
-fn index() -> Html<&'static str> {
-    Html(
-        r###"
-    <body>
-        <form id="loginForm">
-            Name: <input id="nameInput" type="text" />
-            <button type="submit">Login</button>
-        </form>
-
-        <form id="sendForm" hidden>
-            Text: <input id="msgInput" type="text" />
-            <button type="submit">Send</button>
-        </form>
-
-        <textarea id="msgsArea" cols="50" rows="30" hidden></textarea>
-    </body>
-    <script>
-        let ws;
-        const loginForm = document.querySelector("#loginForm");
-        const sendForm = document.querySelector("#sendForm");
-        const nameInput = document.querySelector("#nameInput");
-        const msgInput = document.querySelector("#msgInput");
-        const msgsArea = document.querySelector("#msgsArea");
-
-        nameInput.focus();
-
-        loginForm.addEventListener("submit", function(event) {
-            event.preventDefault();
-            loginForm.hidden = true;
-            sendForm.hidden = false;
-            msgsArea.hidden = false;
-            msgInput.focus();
-            ws = new WebSocket("ws://127.0.0.1:8080/ws");
-            ws.onmessage = function(event) {
-                msgsArea.value += event.data + "\r\n";
-            }
-        });
-
-        sendForm.addEventListener("submit", function(event) {
-            event.preventDefault();
-            ws.send(msgInput.value);
-            msgInput.value = "";
-        });
-
-    </script>
-    "###,
-    )
 }
 
 pub async fn api_server(settings: Settings) -> anyhow::Result<()> {
     let api_service = OpenApiService::new(Api, "ReBPF API", "1.0").server("/api");
     let swagger = api_service.clone().swagger_ui();
+    let tx = broadcast::channel::<LogMessageSerialized>(2048 * 10).0;
+
     let state = ApiState {
         control_socket_path: settings.control_socket_path.clone(),
     };
-    let tx = broadcast::channel::<LogMessageSerialized>(100).0;
+
     let tx_clone = tx.clone();
     let app = Route::new()
         .nest("/api", api_service)
         .nest("/docs", swagger)
         .at("/ws", get(ws_logs.data(tx_clone)))
-        .at("/", get(index))
         .with(AddData::new(state));
 
     tokio::spawn(async move {
