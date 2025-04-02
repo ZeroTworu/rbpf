@@ -1,4 +1,5 @@
 #![no_std]
+
 #[derive(Copy, Clone, Debug)]
 #[repr(C)]
 pub struct Rule {
@@ -61,8 +62,12 @@ pub struct LogMessage {
 
 #[cfg(feature = "user")]
 pub mod user {
+    extern crate alloc;
     use super::*;
+    use alloc::string::String;
+    use core::net::{Ipv4Addr, Ipv6Addr};
     use serde::{Deserialize, Serialize};
+
     unsafe impl aya::Pod for LogMessage {}
     unsafe impl aya::Pod for Rule {}
 
@@ -76,5 +81,43 @@ pub mod user {
         Reload = 0,
         GetRules = 1,
         UpdateRule = 2,
+    }
+
+    #[derive(Debug, Clone, Serialize, Deserialize)]
+    pub enum TrafficType {
+        Input = 0,
+        Output = 1,
+    }
+
+    #[derive(Debug, Clone, Serialize, Deserialize)]
+    pub enum ProtocolVersionType {
+        V4 = 0,
+        V6 = 1,
+    }
+
+    #[derive(Debug, Clone, Serialize, Deserialize)]
+    pub enum ProtocolType {
+        TCP = 0,
+        UDP = 1,
+    }
+
+    #[derive(Clone, Debug, Serialize, Deserialize)]
+    pub struct LogMessageSerialized {
+        pub traffic_type: TrafficType,
+        pub protocol_version_type: ProtocolVersionType,
+        pub protocol_type: ProtocolType,
+
+        pub source_addr_v6: Ipv6Addr,
+        pub destination_addr_v6: Ipv6Addr,
+
+        pub source_addr_v4: Ipv4Addr,
+        pub destination_addr_v4: Ipv4Addr,
+        pub rule_id: u32,
+        pub if_name: String,
+
+        pub source_port: u16,
+        pub destination_port: u16,
+
+        pub level: u8,
     }
 }

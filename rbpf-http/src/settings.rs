@@ -2,10 +2,13 @@ use clap::Parser;
 use tokio::fs::read_to_string;
 use yaml_rust2::YamlLoader;
 
+#[derive(Debug, Clone)]
 pub struct Settings {
     pub http_addr: String,
-    pub control_socket_path: String,
     pub http_port: u16,
+
+    pub control_socket_path: String,
+    pub logs_socket_path: String,
 }
 
 #[derive(Debug, Parser)]
@@ -24,6 +27,7 @@ pub async fn read_settings() -> anyhow::Result<Settings> {
         http_addr: http["addr"].as_str().unwrap().to_string(),
         http_port: http["port"].as_i64().unwrap() as u16,
         control_socket_path: http["control_socket_path"].as_str().unwrap().to_string(),
+        logs_socket_path: http["logs_socket_path"].as_str().unwrap().to_string(),
     };
     Ok(settings_struct)
 }

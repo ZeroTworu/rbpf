@@ -1,15 +1,22 @@
+use crate::control::change_socket_owner;
 use crate::rules::get_rule_name;
+use crate::settings::Settings;
 use aya::maps::{MapData, RingBuf};
 use core::net::IpAddr;
 use core::str::from_utf8;
 use libc::if_indextoname;
 use log::{debug, error, info, warn};
+use rbpf_common::user::{LogMessageSerialized, ProtocolType, ProtocolVersionType, TrafficType};
 use rbpf_common::LogMessage;
 use std::collections::HashMap;
 use std::ffi::CStr;
 use std::net::{Ipv4Addr, Ipv6Addr};
+use std::path::Path;
+use std::sync::mpsc;
 use std::sync::{Arc, LazyLock};
 use tokio::io::unix::AsyncFd;
+use tokio::io::AsyncWriteExt;
+use tokio::net::UnixListener;
 use tokio::sync::{watch, RwLock};
 use trust_dns_resolver::config::{ResolverConfig, ResolverOpts};
 use trust_dns_resolver::error::ResolveError;
@@ -21,11 +28,42 @@ pub const LOGS_RING_BUF: &str = "LOGS_RING_BUF";
 static DNS_CACHE: LazyLock<Arc<RwLock<HashMap<String, String>>>> =
     LazyLock::new(|| Arc::new(RwLock::new(HashMap::new())));
 
+#[derive(Debug)]
 pub struct WLogMessage {
     pub msg: LogMessage,
 }
 
 impl WLogMessage {
+    pub fn to_serialized(&self) -> LogMessageSerialized {
+        LogMessageSerialized {
+            traffic_type: if self.msg.input {
+                TrafficType::Input
+            } else {
+                TrafficType::Output
+            },
+            protocol_type: if self.msg.tcp {
+                ProtocolType::TCP
+            } else {
+                ProtocolType::UDP
+            },
+            protocol_version_type: if self.msg.v4 {
+                ProtocolVersionType::V4
+            } else {
+                ProtocolVersionType::V6
+            },
+
+            source_addr_v4: self.src_v4(),
+            destination_addr_v4: self.dest_v4(),
+
+            source_addr_v6: self.src_v6(),
+            destination_addr_v6: self.dest_v6(),
+            rule_id: self.msg.rule_id,
+            level: self.msg.level,
+            if_name: self.iface(),
+            source_port: self.msg.source_port,
+            destination_port: self.msg.destination_port,
+        }
+    }
     pub fn iface(&self) -> String {
         let mut name_buf = [0u8; libc::IF_NAMESIZE];
         let name_ptr = name_buf.as_mut_ptr() as *mut i8;
@@ -161,12 +199,15 @@ pub const DEBUG: u8 = 0;
 pub const INFO: u8 = 1;
 pub const WARN: u8 = 2;
 
-pub async fn log_listener(ring: RingBuf<MapData>, resolve_ptr_records: bool) -> anyhow::Result<()> {
+pub async fn log_listener(
+    ring: RingBuf<MapData>,
+    resolve_ptr_records: bool,
+    tx: mpsc::Sender<WLogMessage>,
+) -> anyhow::Result<()> {
     let (_, rx) = watch::channel(false);
     info!("Starting log listener...");
     let task = tokio::spawn(async move {
         let mut async_fd = AsyncFd::new(ring).unwrap();
-
         let mut rx = rx.clone();
         loop {
             tokio::select! {
@@ -183,6 +224,7 @@ pub async fn log_listener(ring: RingBuf<MapData>, resolve_ptr_records: bool) -> 
                             WARN => warn!("{}", msg_wrapper.log(resolve_ptr_records).await),
                             _ => error!("{}", msg_wrapper.log(resolve_ptr_records).await),
                         }
+                        tx.send(msg_wrapper).unwrap()
                     }
 
                     guard.clear_ready();
@@ -197,4 +239,34 @@ pub async fn log_listener(ring: RingBuf<MapData>, resolve_ptr_records: bool) -> 
     });
     task.await?;
     Ok(())
+}
+
+pub async fn log_sender(settings: Arc<Settings>, rx: mpsc::Receiver<WLogMessage>) {
+    tokio::spawn(async move {
+        if Path::new(&settings.logs_socket_path).exists() {
+            std::fs::remove_file(&settings.logs_socket_path).unwrap();
+        }
+        let logs_listener = UnixListener::bind(&settings.logs_socket_path).unwrap();
+        if settings.logs_on {
+            change_socket_owner(&settings.logs_socket_path, &settings.logs_socket_owner).unwrap();
+            info!("Logs sock on {}", settings.logs_socket_path);
+        }
+        loop {
+            let (mut socket, _) = logs_listener.accept().await.unwrap();
+            loop {
+                let msg = rx.recv().unwrap();
+                let serialized = serde_json::to_vec(&msg.to_serialized()).unwrap();
+                let len = (serialized.len() as u32).to_be_bytes();
+
+                if socket.write_all(&len).await.is_err() {
+                    error!("Client disconnected when sending len of message");
+                    break;
+                }
+                if socket.write_all(&serialized).await.is_err() {
+                    error!("Client disconnected when sending serialized message");
+                    break;
+                }
+            }
+        }
+    });
 }

@@ -1,9 +1,13 @@
+use crate::logs::WLogMessage;
 use aya::maps::RingBuf;
 use aya::Ebpf;
 use log::{debug, info, warn};
 use rbpf_loader::control;
 use rbpf_loader::logs;
+use rbpf_loader::logs::log_sender;
 use rbpf_loader::settings;
+use std::sync::mpsc;
+use std::sync::Arc;
 use tokio::signal::unix::{signal, SignalKind};
 use tokio::task::spawn;
 
@@ -34,20 +38,24 @@ async fn init_bpf() -> anyhow::Result<()> {
         warn!("failed to initialize eBPF logger: {}", e);
     }
 
-    let settings = settings::read_settings(&mut ebpf).await?;
+    let settings = Arc::new(settings::read_settings(&mut ebpf).await?);
     let logs_ring_buf = RingBuf::try_from(ebpf.take_map(logs::LOGS_RING_BUF).unwrap())?;
+    let (tx, rx) = mpsc::channel::<WLogMessage>();
     spawn(logs::log_listener(
         logs_ring_buf,
-        settings.resolve_ptr_records,
+        settings.clone().resolve_ptr_records,
+        tx,
     ));
+
+    log_sender(settings.clone(), rx).await;
+
     if settings.control_on {
-        control::control_loop(&settings, &mut ebpf).await?;
+        control::control_loop(settings.clone(), &mut ebpf).await?;
     } else {
         let mut sig = signal(SignalKind::terminate())?;
         loop {
             sig.recv().await;
         }
     }
-
     Ok(())
 }

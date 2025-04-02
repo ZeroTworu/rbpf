@@ -6,12 +6,16 @@ use log::{info, warn};
 use tokio::fs::read_to_string;
 use yaml_rust2::YamlLoader;
 
+#[derive(Debug, Clone)]
 pub struct Settings {
     pub resolve_ptr_records: bool,
     pub control_on: bool,
     pub rules_path: String,
     pub control_socket_path: String,
     pub control_socket_owner: String,
+    pub logs_on: bool,
+    pub logs_socket_path: String,
+    pub logs_socket_owner: String,
 }
 
 #[derive(Debug, Parser)]
@@ -29,6 +33,7 @@ pub async fn read_settings(ebpf: &mut Ebpf) -> anyhow::Result<Settings> {
     let settings = YamlLoader::load_from_str(&yaml)?;
     rules::load_rules(&opt.rules, ebpf).await?;
     let control = &settings[0]["control"];
+    let logs = &settings[0]["logs"];
 
     let settings_struct = Settings {
         resolve_ptr_records: (&settings[0])["resolve_ptr_records"].as_bool().unwrap(),
@@ -39,6 +44,9 @@ pub async fn read_settings(ebpf: &mut Ebpf) -> anyhow::Result<Settings> {
             .unwrap()
             .to_string(),
         control_on: control["on"].as_bool().unwrap(),
+        logs_on: logs["on"].as_bool().unwrap(),
+        logs_socket_path: logs["logs_socket_path"].as_str().unwrap().to_string(),
+        logs_socket_owner: logs["logs_socket_owner"].as_str().unwrap().to_string(),
     };
 
     // TODO: Придумать как это красиво убрать в отдельный лоадер

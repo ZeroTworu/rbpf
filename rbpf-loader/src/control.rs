@@ -5,10 +5,11 @@ use log::info;
 use rbpf_common::user::{Control, ControlAction};
 use std::fs;
 use std::path::Path;
+use std::sync::Arc;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::UnixListener;
 
-fn change_socket_owner(socket_path: &str, username: &str) -> std::io::Result<()> {
+pub fn change_socket_owner(socket_path: &str, username: &str) -> std::io::Result<()> {
     let user = nix::unistd::User::from_name(username)?.expect("User not found");
 
     let uid = user.uid.as_raw();
@@ -18,6 +19,7 @@ fn change_socket_owner(socket_path: &str, username: &str) -> std::io::Result<()>
 
     unsafe {
         if libc::chown(c_socket_path.as_ptr(), uid, gid) != 0 {
+            println!("change socket owner for {} to {}", socket_path, username);
             eprintln!("Cannot chown: {}", std::io::Error::last_os_error());
         }
     }
@@ -25,13 +27,13 @@ fn change_socket_owner(socket_path: &str, username: &str) -> std::io::Result<()>
     Ok(())
 }
 
-pub async fn control_loop(settings: &Settings, ebpf: &mut Ebpf) -> anyhow::Result<()> {
+pub async fn control_loop(settings: Arc<Settings>, ebpf: &mut Ebpf) -> anyhow::Result<()> {
     info!("Starting control loop...");
     if Path::new(&settings.control_socket_path).exists() {
         fs::remove_file(&settings.control_socket_path)?;
     }
 
-    let listener = UnixListener::bind(&settings.control_socket_path)?;
+    let control_listener = UnixListener::bind(&settings.control_socket_path)?;
     info!("Control socket on {}", &settings.control_socket_path);
     change_socket_owner(
         &settings.control_socket_path,
@@ -39,7 +41,7 @@ pub async fn control_loop(settings: &Settings, ebpf: &mut Ebpf) -> anyhow::Resul
     )?;
 
     loop {
-        let (mut socket, _) = listener.accept().await?;
+        let (mut socket, _) = control_listener.accept().await?;
 
         let mut buffer = vec![0; 1024];
         match socket.read(&mut buffer).await {

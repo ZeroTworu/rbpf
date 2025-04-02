@@ -1,13 +1,14 @@
 use crate::settings::Settings;
-use log::info;
+use log::{info, warn};
 use poem::middleware::AddData;
 use poem::web::Data;
 use poem::{listener::TcpListener, EndpointExt, Route, Server};
 use poem_openapi::{param::Path, payload::Json, OpenApi, OpenApiService};
-use rbpf_common::user::{Control, ControlAction};
+use rbpf_common::user::{Control, ControlAction, LogMessageSerialized};
 use rbpf_loader::rules::RuleWithName;
 use serde_json::from_slice;
 use std::collections::HashMap;
+use std::path::Path as FSPath;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::UnixStream;
 
@@ -79,6 +80,34 @@ impl Api {
         let serialized = serde_json::to_vec(&command)?;
         stream.write_all(&serialized).await?;
         Ok(stream)
+    }
+}
+
+pub async fn logs_server(settings: Settings) -> anyhow::Result<()> {
+    if !FSPath::new(&settings.logs_socket_path).exists() {
+        warn!(
+            "Logs socket path {} does not exist",
+            settings.logs_socket_path
+        );
+        return Ok(());
+    }
+    let mut stream = UnixStream::connect(settings.logs_socket_path).await?;
+    info!("Connected to logs server.");
+
+    loop {
+        let mut len_buf = [0u8; 4];
+        if stream.read_exact(&mut len_buf).await.is_err() {
+            warn!("Server closed connection.1");
+        }
+        let msg_len = u32::from_be_bytes(len_buf) as usize;
+
+        let mut msg_buf = vec![0u8; msg_len];
+        if stream.read_exact(&mut msg_buf).await.is_err() {
+            warn!("Server closed connection.2");
+        }
+
+        let message: LogMessageSerialized = from_slice(&msg_buf)?;
+
     }
 }
 
