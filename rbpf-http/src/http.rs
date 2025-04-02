@@ -1,9 +1,17 @@
 use crate::settings::Settings;
+use futures::{SinkExt, StreamExt};
 use log::{info, warn};
 use poem::middleware::AddData;
-use poem::web::Data;
-use poem::{listener::TcpListener, EndpointExt, Route, Server};
-use poem_openapi::{param::Path, payload::Json, OpenApi, OpenApiService};
+use poem::{
+    get, handler,
+    listener::TcpListener,
+    web::{
+        websocket::{Message, WebSocket},
+        Data, Html, Path,
+    },
+    EndpointExt, IntoResponse, Route, Server,
+};
+use poem_openapi::{payload::Json, OpenApi, OpenApiService};
 use rbpf_common::user::{Control, ControlAction, LogMessageSerialized};
 use rbpf_loader::rules::RuleWithName;
 use serde_json::from_slice;
@@ -11,6 +19,7 @@ use std::collections::HashMap;
 use std::path::Path as FSPath;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::UnixStream;
+use tokio::sync::broadcast;
 
 #[derive(Clone)]
 struct Api;
@@ -83,15 +92,15 @@ impl Api {
     }
 }
 
-pub async fn logs_server(settings: Settings) -> anyhow::Result<()> {
-    if !FSPath::new(&settings.logs_socket_path).exists() {
-        warn!(
-            "Logs socket path {} does not exist",
-            settings.logs_socket_path
-        );
+pub async fn logs_server(
+    logs_socket_path: &String,
+    sender: broadcast::Sender<LogMessageSerialized>,
+) -> anyhow::Result<()> {
+    if !FSPath::new(logs_socket_path).exists() {
+        warn!("Logs socket path {} does not exist", logs_socket_path);
         return Ok(());
     }
-    let mut stream = UnixStream::connect(settings.logs_socket_path).await?;
+    let mut stream = UnixStream::connect(logs_socket_path).await?;
     info!("Connected to logs server.");
 
     loop {
@@ -107,8 +116,78 @@ pub async fn logs_server(settings: Settings) -> anyhow::Result<()> {
         }
 
         let message: LogMessageSerialized = from_slice(&msg_buf)?;
-
+        if sender.receiver_count() > 0 {
+            let _ = sender.send(message);
+        }
     }
+}
+
+#[handler]
+pub async fn ws_logs(
+    ws: WebSocket,
+    data: Data<&broadcast::Sender<LogMessageSerialized>>,
+) -> impl IntoResponse {
+    let mut receiver = data.subscribe();
+    ws.on_upgrade(move |socket| async move {
+        let (mut sink, _) = socket.split();
+        while let Ok(msg) = receiver.recv().await {
+            if let Err(e) = sink.send(Message::Text(serde_json::to_string(&msg).unwrap())).await {
+                println!("ERR WS closed connection.3: {:?}", e);
+                break;
+            }
+        }
+        println!("WS closed connection.4");
+    })
+}
+
+#[handler]
+fn index() -> Html<&'static str> {
+    Html(
+        r###"
+    <body>
+        <form id="loginForm">
+            Name: <input id="nameInput" type="text" />
+            <button type="submit">Login</button>
+        </form>
+
+        <form id="sendForm" hidden>
+            Text: <input id="msgInput" type="text" />
+            <button type="submit">Send</button>
+        </form>
+
+        <textarea id="msgsArea" cols="50" rows="30" hidden></textarea>
+    </body>
+    <script>
+        let ws;
+        const loginForm = document.querySelector("#loginForm");
+        const sendForm = document.querySelector("#sendForm");
+        const nameInput = document.querySelector("#nameInput");
+        const msgInput = document.querySelector("#msgInput");
+        const msgsArea = document.querySelector("#msgsArea");
+
+        nameInput.focus();
+
+        loginForm.addEventListener("submit", function(event) {
+            event.preventDefault();
+            loginForm.hidden = true;
+            sendForm.hidden = false;
+            msgsArea.hidden = false;
+            msgInput.focus();
+            ws = new WebSocket("ws://127.0.0.1:8080/ws");
+            ws.onmessage = function(event) {
+                msgsArea.value += event.data + "\r\n";
+            }
+        });
+
+        sendForm.addEventListener("submit", function(event) {
+            event.preventDefault();
+            ws.send(msgInput.value);
+            msgInput.value = "";
+        });
+
+    </script>
+    "###,
+    )
 }
 
 pub async fn api_server(settings: Settings) -> anyhow::Result<()> {
@@ -117,14 +196,24 @@ pub async fn api_server(settings: Settings) -> anyhow::Result<()> {
     let state = ApiState {
         control_socket_path: settings.control_socket_path.clone(),
     };
+    let tx = broadcast::channel::<LogMessageSerialized>(100).0;
+    let tx_clone = tx.clone();
     let app = Route::new()
         .nest("/api", api_service)
         .nest("/docs", swagger)
+        .at("/ws", get(ws_logs.data(tx_clone)))
+        .at("/", get(index))
         .with(AddData::new(state));
+
+    tokio::spawn(async move {
+        let _ = logs_server(&settings.logs_socket_path, tx).await;
+    });
+
     info!(
         "HTTP server started on http://{}:{}",
         &settings.http_addr, &settings.http_port
     );
+
     Server::new(TcpListener::bind(format!(
         "{}:{}",
         &settings.http_addr, &settings.http_port

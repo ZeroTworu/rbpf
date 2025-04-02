@@ -1,5 +1,4 @@
 #![no_std]
-
 #[derive(Copy, Clone, Debug)]
 #[repr(C)]
 pub struct Rule {
@@ -63,6 +62,8 @@ pub struct LogMessage {
 #[cfg(feature = "user")]
 pub mod user {
     extern crate alloc;
+
+    use alloc::format;
     use super::*;
     use alloc::string::String;
     use core::net::{Ipv4Addr, Ipv6Addr};
@@ -119,5 +120,11 @@ pub mod user {
         pub destination_port: u16,
 
         pub level: u8,
+    }
+
+    impl LogMessageSerialized {
+        pub fn to_json(&self) -> String {
+            format!("{} {}", self.source_addr_v6, self.destination_addr_v4)
+        }
     }
 }
