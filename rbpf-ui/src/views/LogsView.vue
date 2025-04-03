@@ -51,23 +51,23 @@ const headers = [
 ];
 
 
-const logs = computed(() => store.getters.logs);
+const logs = computed(() => store.getters["logs/logs"]);
 
 
 const connectWebSocket = () => {
-  ws = new WebSocket("ws://127.0.0.1:8080/ws");
+  ws = new WebSocket("ws://127.0.0.1:8080/ws/logs");
 
   ws.onmessage = (event) => {
     try {
       const data = JSON.parse(event.data);
       console.log(data);
-      store.dispatch("addLog", data);
+      store.dispatch("logs/addLog", data);
     } catch (error) {
-      console.error("WS ERROR:", error);
+      console.error("ws.onmessage.ERROR:", error);
     }
   };
 
-  ws.onerror = (error) => console.error("WS ERROR:", error);
+  ws.onerror = (error) => console.error("ws.onerror:", error);
   ws.onclose = () => {
     setTimeout(connectWebSocket, 5000);
   };
@@ -86,11 +86,11 @@ onUnmounted(() => {
 
 <style scoped>
 .v-container {
-  height: 100vh; /* Заполняем всю высоту экрана */
+  height: 100vh;
 }
 
 .v-card {
-  width: 100%; /* Карточка занимает всю ширину */
+  width: 100%;
 }
 
 .v-data-table {

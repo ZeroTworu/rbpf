@@ -9,8 +9,8 @@ resolve_ptr_records: false
 control:
   on:  true
   control_socket_path: "/run/rbpf_control.sock"
-  control_socket_owner: "vshcherbakov"
+  control_socket_owner: ""
 logs:
   on:  true
   logs_socket_path: "/run/rbpf_logs.sock"
-  logs_socket_owner: "vshcherbakov"
+  logs_socket_owner: ""

@@ -26,7 +26,10 @@
 
 * `rbpf-ui` - Single Page Application написанное на Vue.js v3. Служит для вывода информации и управления eBPF модулем. 
 
-#### ![rbpf](assets/logs_table.png)
+#### ![logs](assets/logs_table.png)
+
+
+#### ![rules](assets/rules_table.png)
 
 #### Принцип работы
 

@@ -5,6 +5,7 @@ use poem::middleware::AddData;
 use poem::{
     get, handler,
     listener::TcpListener,
+    middleware::Cors,
     web::{
         websocket::{Message, WebSocket},
         Data, Path,
@@ -12,11 +13,12 @@ use poem::{
     EndpointExt, IntoResponse, Route, Server,
 };
 use poem_openapi::{payload::Json, OpenApi, OpenApiService};
-use rbpf_common::user::{Control, ControlAction, LogMessageSerialized};
-use rbpf_loader::rules::RuleWithName;
-use serde_json::from_slice;
+use rbpf_common::user::LogMessageSerialized;
 use rbpf_common::DEBUG;
+use rbpf_loader::rules::{Control, ControlAction, RuleWithName};
+use serde_json::from_slice;
 use std::collections::HashMap;
+use std::ops::Deref;
 use std::path::Path as FSPath;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::UnixStream;
@@ -36,6 +38,7 @@ impl Api {
     async fn reload_rules(&self, state: Data<&ApiState>) -> Json<String> {
         let con = Control {
             action: ControlAction::Reload,
+            rule: RuleWithName::from_empty(),
         };
         match self.send_command(state, con).await {
             Ok(_) => Json("Reload signal sent".to_string()),
@@ -44,9 +47,10 @@ impl Api {
     }
 
     #[oai(path = "/rules", method = "get")]
-    async fn get_rules(&self, state: Data<&ApiState>) -> Json<HashMap<u32, RuleWithName>> {
+    async fn get_rules(&self, state: Data<&ApiState>) -> Json<Vec<RuleWithName>> {
         let con = Control {
             action: ControlAction::GetRules,
+            rule: RuleWithName::from_empty(),
         };
         match self.send_command(state, con).await {
             Ok(mut socket) => {
@@ -61,11 +65,11 @@ impl Api {
                 }
 
                 match from_slice::<HashMap<u32, RuleWithName>>(&buffer) {
-                    Ok(rules) => Json(rules),
-                    Err(_) => Json(HashMap::new()),
+                    Ok(rules) => Json(rules.into_values().collect::<Vec<RuleWithName>>()),
+                    Err(_) => Json(Vec::new()),
                 }
             }
-            Err(_) => Json(HashMap::new()),
+            Err(_) => Json(Vec::new()),
         }
     }
 
@@ -76,9 +80,36 @@ impl Api {
     }
 
     #[oai(path = "/rules/:id", method = "put")]
-    async fn update_rule(&self, id: Path<u32>, rule: Json<RuleWithName>) -> Json<String> {
-        println!("Create rule: {:?} {}", rule, id.to_be());
-        Json("Rule successfully updated".to_string())
+    async fn update_rule(
+        &self,
+        state: Data<&ApiState>,
+        _id: Path<u32>,
+        rule: Json<RuleWithName>,
+    ) -> Json<Vec<RuleWithName>> {
+        let wrule: &RuleWithName = rule.deref();
+        let con = Control {
+            action: ControlAction::UpdateRule,
+            rule: wrule.clone(),
+        };
+        match self.send_command(state, con).await {
+            Ok(mut socket) => {
+                let mut buffer = Vec::new();
+                let mut chunk = [0u8; 1024];
+
+                while let Ok(n) = socket.read(&mut chunk).await {
+                    if n == 0 {
+                        break;
+                    }
+                    buffer.extend_from_slice(&chunk[..n]);
+                }
+
+                match from_slice::<HashMap<u32, RuleWithName>>(&buffer) {
+                    Ok(rules) => Json(rules.into_values().collect::<Vec<RuleWithName>>()),
+                    Err(_) => Json(Vec::new()),
+                }
+            }
+            Err(_) => Json(Vec::new()),
+        }
     }
 
     async fn send_command(
@@ -91,6 +122,27 @@ impl Api {
         stream.write_all(&serialized).await?;
         Ok(stream)
     }
+}
+
+#[handler]
+pub async fn ws_logs(
+    ws: WebSocket,
+    data: Data<&broadcast::Sender<LogMessageSerialized>>,
+) -> impl IntoResponse {
+    let mut receiver = data.subscribe();
+    ws.on_upgrade(move |socket| async move {
+        let (mut sink, _) = socket.split();
+        while let Ok(msg) = receiver.recv().await {
+            match serde_json::to_string(&msg) {
+                Ok(json) => {
+                    if let Err(_) = sink.send(Message::Text(json)).await {
+                        break;
+                    }
+                }
+                Err(e) => println!("JSON serialization error: {:?}", e),
+            }
+        }
+    })
 }
 
 pub async fn logs_server(
@@ -119,37 +171,16 @@ pub async fn logs_server(
         let message: LogMessageSerialized = from_slice(&msg_buf)?;
         if message.level > DEBUG {
             match sender.send(message) {
-                Ok(_) => {},
-                Err(e) => println!("Broadcast error: {}", e),
+                Ok(_) => {}
+                Err(e) => warn!("Broadcast error: {}", e),
             }
             tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
         }
     }
 }
 
-#[handler]
-pub async fn ws_logs(
-    ws: WebSocket,
-    data: Data<&broadcast::Sender<LogMessageSerialized>>,
-) -> impl IntoResponse {
-    let mut receiver = data.subscribe();
-    ws.on_upgrade(move |socket| async move {
-        let (mut sink, mut stream) = socket.split();
-        while let Ok(msg) = receiver.recv().await {
-            match serde_json::to_string(&msg) {
-                Ok(json) => {
-                    if let Err(e) = sink.send(Message::Text(json)).await {
-                        break;
-                    }
-                }
-                Err(e) => println!("JSON serialization error: {:?}", e),
-            }
-        }
-    })
-}
-
 pub async fn api_server(settings: Settings) -> anyhow::Result<()> {
-    let api_service = OpenApiService::new(Api, "ReBPF API", "1.0").server("/api");
+    let api_service = OpenApiService::new(Api, "ReBPF API", "1.0").server("/api/v1");
     let swagger = api_service.clone().swagger_ui();
     let tx = broadcast::channel::<LogMessageSerialized>(2048 * 10).0;
 
@@ -157,12 +188,19 @@ pub async fn api_server(settings: Settings) -> anyhow::Result<()> {
         control_socket_path: settings.control_socket_path.clone(),
     };
 
+    let cors = Cors::new()
+        .allow_origin("http://localhost:5173")
+        .allow_origin("http://127.0.0.1:5173")
+        .allow_methods(["GET", "POST", "OPTIONS", "PUT", "DELETE"])
+        .allow_headers(["Content-Type", "Authorization"]);
+
     let tx_clone = tx.clone();
     let app = Route::new()
-        .nest("/api", api_service)
+        .nest("/api/v1", api_service)
         .nest("/docs", swagger)
-        .at("/ws", get(ws_logs.data(tx_clone)))
-        .with(AddData::new(state));
+        .at("/ws/logs", get(ws_logs.data(tx_clone)))
+        .with(AddData::new(state))
+        .with(cors);
 
     tokio::spawn(async move {
         let _ = logs_server(&settings.logs_socket_path, tx).await;

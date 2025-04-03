@@ -1,6 +1,5 @@
 #![no_std]
 
-
 // Костыль что бы не заморачиваться с передачей enum eBPF -> userspace
 pub const DEBUG: u8 = 0;
 pub const INFO: u8 = 1;
@@ -78,18 +77,6 @@ pub mod user {
     unsafe impl aya::Pod for Rule {}
 
     #[derive(Debug, Clone, Serialize, Deserialize)]
-    pub struct Control {
-        pub action: ControlAction,
-    }
-
-    #[derive(Debug, Clone, Serialize, Deserialize)]
-    pub enum ControlAction {
-        Reload = 0,
-        GetRules = 1,
-        UpdateRule = 2,
-    }
-
-    #[derive(Debug, Clone, Serialize, Deserialize)]
     pub enum TrafficType {
         Input = 0,
         Output = 1,
@@ -135,5 +122,4 @@ pub mod user {
         pub level: u8,
         pub action: ActionType,
     }
-
 }

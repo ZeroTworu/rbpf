@@ -6,8 +6,10 @@ use core::net::IpAddr;
 use core::str::from_utf8;
 use libc::if_indextoname;
 use log::{debug, error, info, warn};
-use rbpf_common::user::{LogMessageSerialized, ProtocolType, ProtocolVersionType, TrafficType, ActionType};
-use rbpf_common::{LogMessage, INFO, DEBUG, WARN};
+use rbpf_common::user::{
+    ActionType, LogMessageSerialized, ProtocolType, ProtocolVersionType, TrafficType,
+};
+use rbpf_common::{LogMessage, DEBUG, INFO, WARN};
 use std::collections::HashMap;
 use std::ffi::CStr;
 use std::net::{Ipv4Addr, Ipv6Addr};
@@ -35,11 +37,10 @@ pub struct WLogMessage {
 
 impl WLogMessage {
     pub async fn to_serialized(&self) -> LogMessageSerialized {
-
         let rule_name = if self.msg.rule_id != 0 {
             match get_rule_name(self.msg.rule_id).await {
                 Some(rule) => rule.name,
-                None => "No rule for this ID".to_string()
+                None => "No rule for this ID".to_string(),
             }
         } else {
             "".to_string()
@@ -47,8 +48,14 @@ impl WLogMessage {
 
         let rule_action = if self.msg.rule_id != 0 {
             match get_rule_name(self.msg.rule_id).await {
-                Some(rule) => if rule.drop {ActionType::Drop} else {ActionType::Ok},
-                None => ActionType::Pipe
+                Some(rule) => {
+                    if rule.drop {
+                        ActionType::Drop
+                    } else {
+                        ActionType::Ok
+                    }
+                }
+                None => ActionType::Pipe,
             }
         } else {
             ActionType::Pipe
@@ -70,7 +77,7 @@ impl WLogMessage {
             } else {
                 ProtocolVersionType::V6
             },
-            action:  rule_action,
+            action: rule_action,
             source_addr_v4: self.src_v4(),
             destination_addr_v4: self.dest_v4(),
 
@@ -214,7 +221,6 @@ impl WLogMessage {
     }
 }
 
-
 pub async fn log_listener(
     ring: RingBuf<MapData>,
     resolve_ptr_records: bool,
@@ -285,7 +291,6 @@ pub async fn log_sender(settings: Arc<Settings>, rx: mpsc::Receiver<WLogMessage>
                     error!("Client disconnected when sending serialized message");
                     break;
                 }
-
             }
         }
     });

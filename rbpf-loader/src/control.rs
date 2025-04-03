@@ -1,8 +1,8 @@
 use crate::rules;
+use crate::rules::{Control, ControlAction};
 use crate::settings::Settings;
 use aya::Ebpf;
 use log::info;
-use rbpf_common::user::{Control, ControlAction};
 use std::fs;
 use std::path::Path;
 use std::sync::Arc;
@@ -49,14 +49,24 @@ pub async fn control_loop(settings: Arc<Settings>, ebpf: &mut Ebpf) -> anyhow::R
                 let received_data = &buffer[..n];
                 let control = serde_json::from_slice::<Control>(received_data)?;
                 match control.action {
-                    ControlAction::Reload => rules::load_rules(&settings.rules_path, ebpf).await?,
+                    ControlAction::Reload => {
+                        rules::load_rules(&settings.rules_path, ebpf).await?;
+                        socket.flush().await?;
+                    }
                     ControlAction::GetRules => {
                         let rules = rules::get_rules().await;
                         let json_data = serde_json::to_vec(&rules)?;
                         socket.write_all(&json_data).await?;
                         socket.flush().await?;
                     }
-                    ControlAction::UpdateRule => {}
+                    ControlAction::UpdateRule => {
+                        rules::change_rule(control.rule.rule_id, control.rule).await;
+                        rules::reload_rules(ebpf).await?;
+                        let rules = rules::get_rules().await;
+                        let json_data = serde_json::to_vec(&rules)?;
+                        socket.write_all(&json_data).await?;
+                        socket.flush().await?;
+                    }
                 }
             }
             _ => {}
