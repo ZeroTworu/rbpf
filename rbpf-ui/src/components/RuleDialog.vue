@@ -128,7 +128,6 @@ const ipv6Destination = computed({
 });
 
 const save = () => {
-  console.log(localRule);
   emit("save", localRule.value);
   emit("close");
 };

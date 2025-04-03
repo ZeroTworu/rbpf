@@ -239,14 +239,30 @@ impl ParseResult {
         Action::Pipe
     }
 
+    #[inline(always)]
     pub fn not_my_rule(&self, rule: &WRule) -> bool {
-        !rule.rule.on
-            || (self.v4 && !rule.rule.v4)
-            || (self.v6 && !rule.rule.v6)
-            || (self.input && !rule.rule.input)
-            || (self.output && !rule.rule.output)
-            || (self.proto != IpProto::Tcp && rule.rule.tcp)
-            || (self.proto != IpProto::Udp && rule.rule.udp)
+        if !rule.rule.on {
+            return true;
+        }
+        if self.v4 && !rule.rule.v4 {
+            return true;
+        }
+        if self.v6 && !rule.rule.v6 {
+            return true;
+        }
+        if self.input && !rule.rule.input {
+            return true;
+        }
+        if self.output && !rule.rule.output {
+            return true;
+        }
+        if (self.proto == IpProto::Tcp) && !rule.rule.tcp {
+            return true;
+        }
+        if (self.proto == IpProto::Udp) && !rule.rule.udp {
+            return true;
+        }
+        false
     }
 }
 

@@ -167,10 +167,22 @@ impl WLogMessage {
             ("".to_string(), "".to_string())
         };
 
+        let proto = format!(
+            "{}",
+            if self.msg.udp && self.msg.tcp {
+                "TCP UDP"
+            } else if self.msg.udp {
+                "UDP"
+            } else {
+                "TCP"
+            }
+        );
+
         let info = if self.msg.input {
             format!(
-                "INPUT: ({}) {} {}:{} -> {} {}:{}",
+                "INPUT: ({} {}) {} {}:{} -> {} {}:{}",
                 self.iface(),
+                proto,
                 src_ptr,
                 s_ip,
                 self.msg.source_port,
@@ -180,8 +192,9 @@ impl WLogMessage {
             )
         } else {
             format!(
-                "OUTPUT: ({}) {} {}:{} -> {} {}:{}",
+                "OUTPUT: ({} {}) {} {}:{} -> {} {}:{}",
                 self.iface(),
+                proto,
                 src_ptr,
                 s_ip,
                 self.msg.source_port,

@@ -2,13 +2,30 @@ import { Module } from "vuex";
 import type { RootState }  from "@/store";
 import { Api } from "@/api/rulesApi";
 
+export enum TrafficType {
+    Input = 0,
+    Output = 1,
+}
+
+export enum ProtocolVersionType {
+    V4 = 0,
+    V6 = 1,
+}
+
+export enum ProtocolType {
+    TCP = 0,
+    UDP = 1,
+}
+
 export interface Rule {
     rule_id: number;
     name: string;
     source_addr_v4: number;
     source_mask_v4: number;
+    source_mask_v6: number;
     destination_addr_v4: number;
     destination_mask_v4: number;
+    destination_mask_v6: number;
     source_port_start: number;
     source_port_end: number;
     destination_port_start: number;
