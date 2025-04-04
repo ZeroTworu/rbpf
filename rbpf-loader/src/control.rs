@@ -9,18 +9,25 @@ use std::sync::Arc;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::UnixListener;
 
-pub fn change_socket_owner(socket_path: &str, username: &str) -> std::io::Result<()> {
+pub fn change_socket_owner_mode(
+    socket_path: &str,
+    username: &str,
+    chmod: u32,
+) -> std::io::Result<()> {
     let user = nix::unistd::User::from_name(username)?.expect("User not found");
 
     let uid = user.uid.as_raw();
     let gid = user.gid.as_raw();
+    let mode: libc::mode_t = libc::mode_t::from_le(chmod);
 
-    let c_socket_path = std::ffi::CString::new(socket_path).unwrap();
+    let c_socket_path = std::ffi::CString::new(socket_path)?;
 
     unsafe {
         if libc::chown(c_socket_path.as_ptr(), uid, gid) != 0 {
-            println!("change socket owner for {} to {}", socket_path, username);
             eprintln!("Cannot chown: {}", std::io::Error::last_os_error());
+        }
+        if libc::chmod(c_socket_path.as_ptr(), mode) != 0 {
+            eprintln!("Cannot chmod: {}", std::io::Error::last_os_error());
         }
     }
 
@@ -35,9 +42,10 @@ pub async fn control_loop(settings: Arc<Settings>, ebpf: &mut Ebpf) -> anyhow::R
 
     let control_listener = UnixListener::bind(&settings.control_socket_path)?;
     info!("Control socket on {}", &settings.control_socket_path);
-    change_socket_owner(
+    change_socket_owner_mode(
         &settings.control_socket_path,
         &settings.control_socket_owner,
+        settings.control_socket_chmod,
     )?;
 
     loop {

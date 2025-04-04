@@ -9,8 +9,10 @@ resolve_ptr_records: false
 control:
   on:  true
   control_socket_path: "/run/rbpf_control.sock"
-  control_socket_owner: ""
+  control_socket_owner: "nobody"
+  control_socket_chmod: 666
 logs:
   on:  true
   logs_socket_path: "/run/rbpf_logs.sock"
-  logs_socket_owner: ""
+  logs_socket_owner: "nobody"
+  logs_socket_chmod: 666

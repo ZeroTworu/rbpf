@@ -1,6 +1,6 @@
 use crate::settings::Settings;
 use futures::{SinkExt, StreamExt};
-use log::{info, warn};
+use log::{error, info, warn};
 use poem::middleware::AddData;
 use poem::{
     get, handler,
@@ -14,12 +14,12 @@ use poem::{
 };
 use poem_openapi::{payload::Json, OpenApi, OpenApiService};
 use rbpf_common::user::LogMessageSerialized;
-use rbpf_common::DEBUG;
 use rbpf_loader::rules::{Control, ControlAction, RuleWithName};
 use serde_json::from_slice;
 use std::collections::HashMap;
 use std::ops::Deref;
 use std::path::Path as FSPath;
+use std::sync::Arc;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::UnixStream;
 use tokio::sync::broadcast;
@@ -153,28 +153,36 @@ pub async fn logs_server(
         warn!("Logs socket path {} does not exist", logs_socket_path);
         return Ok(());
     }
-    let mut stream = UnixStream::connect(logs_socket_path).await?;
-    info!("Connected to logs server.");
+    let stream = UnixStream::connect(logs_socket_path).await;
 
-    loop {
-        let mut len_buf = [0u8; 4];
-        if stream.read_exact(&mut len_buf).await.is_err() {
-            break Ok(());
-        }
-        let msg_len = u32::from_be_bytes(len_buf) as usize;
+    match stream {
+        Ok(mut stream) => {
+            info!("Connected to logs server.");
+            loop {
+                let mut len_buf = [0u8; 4];
+                if stream.read_exact(&mut len_buf).await.is_err() {
+                    break Ok(());
+                }
+                let msg_len = u32::from_be_bytes(len_buf) as usize;
 
-        let mut msg_buf = vec![0u8; msg_len];
-        if stream.read_exact(&mut msg_buf).await.is_err() {
-            break Ok(());
-        }
+                let mut msg_buf = vec![0u8; msg_len];
+                if stream.read_exact(&mut msg_buf).await.is_err() {
+                    break Ok(());
+                }
 
-        let message: LogMessageSerialized = from_slice(&msg_buf)?;
-        if message.level > DEBUG {
-            match sender.send(message) {
-                Ok(_) => {}
-                Err(e) => warn!("Broadcast error: {}", e),
+                let message: LogMessageSerialized = from_slice(&msg_buf)?;
+                if message.rule_id != 0 {
+                    match sender.send(message) {
+                        Ok(_) => {}
+                        Err(e) => warn!("Broadcast error: {}", e),
+                    }
+                    tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
+                }
             }
-            tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
+        }
+        Err(e) => {
+            error!("Logs server error: {}", e);
+            Err(anyhow::Error::msg(e))
         }
     }
 }
@@ -182,40 +190,66 @@ pub async fn logs_server(
 pub async fn api_server(settings: Settings) -> anyhow::Result<()> {
     let api_service = OpenApiService::new(Api, "ReBPF API", "1.0").server("/api/v1");
     let swagger = api_service.clone().swagger_ui();
-    let tx = broadcast::channel::<LogMessageSerialized>(2048 * 10).0;
 
     let state = ApiState {
         control_socket_path: settings.control_socket_path.clone(),
     };
 
-    let cors = Cors::new()
-        .allow_origin("http://localhost:5173")
-        .allow_origin("http://127.0.0.1:5173")
+    let mut cors = Cors::new()
         .allow_methods(["GET", "POST", "OPTIONS", "PUT", "DELETE"])
         .allow_headers(["Content-Type", "Authorization"]);
 
-    let tx_clone = tx.clone();
-    let app = Route::new()
-        .nest("/api/v1", api_service)
-        .nest("/docs", swagger)
-        .at("/ws/logs", get(ws_logs.data(tx_clone)))
-        .with(AddData::new(state))
-        .with(cors);
+    for cor in settings.cors {
+        info!("Allow CORS: {:?}", cor);
+        cors = cors.allow_origin(cor);
+    }
 
-    tokio::spawn(async move {
-        let _ = logs_server(&settings.logs_socket_path, tx).await;
-    });
+    let mut app = Route::new().nest("/api/v1", api_service);
 
-    info!(
-        "HTTP server started on http://{}:{}",
-        &settings.http_addr, &settings.http_port
-    );
+    if settings.swagger_ui {
+        info!("Swagger UI on /docs");
+        app = app.nest("/docs", swagger);
+    } else {
+        info!("Swagger UI off.");
+    }
 
-    Server::new(TcpListener::bind(format!(
-        "{}:{}",
-        &settings.http_addr, &settings.http_port
-    )))
-    .run(app)
-    .await?;
+    if settings.listen_logs {
+        let tx = broadcast::channel::<LogMessageSerialized>(2048 * 10).0;
+        let tx_clone = tx.clone();
+
+        app = app.at("/ws/logs", get(ws_logs.data(tx_clone)));
+
+        tokio::spawn(async move {
+            let _ = logs_server(&settings.logs_socket_path, tx).await;
+        });
+
+        let app = app.with(AddData::new(state)).with(cors);
+
+        info!(
+            "HTTP server started on http://{}:{}",
+            &settings.http_addr, &settings.http_port
+        );
+
+        Server::new(TcpListener::bind(format!(
+            "{}:{}",
+            &settings.http_addr, &settings.http_port
+        )))
+        .run(Arc::new(app))
+        .await?;
+    } else {
+        let app = app.with(cors);
+
+        info!(
+            "HTTP server started on http://{}:{}",
+            &settings.http_addr, &settings.http_port
+        );
+
+        Server::new(TcpListener::bind(format!(
+            "{}:{}",
+            &settings.http_addr, &settings.http_port
+        )))
+        .run(Arc::new(app))
+        .await?;
+    }
     Ok(())
 }

@@ -1,4 +1,5 @@
 use crate::ip::ParseResult;
+use aya_ebpf::helpers::bpf_ktime_get_ns;
 use aya_ebpf::macros::map;
 use aya_ebpf::maps::RingBuf;
 use network_types::ip::IpProto;
@@ -11,6 +12,11 @@ static mut LOGS_RING_BUF: RingBuf = RingBuf::with_byte_size(512 * 1024, 0);
 #[repr(C)]
 pub struct WLogMessage {
     pub msg: LogMessage,
+}
+
+#[inline(always)]
+pub fn now_ns() -> u64 {
+    unsafe { bpf_ktime_get_ns() }
 }
 
 impl WLogMessage {
@@ -41,6 +47,7 @@ impl WLogMessage {
                 dst_ip_high,
                 dst_ip_low,
                 ifindex: pac.ifindex,
+                timestamp: now_ns(),
             },
         };
         send_log(msg.msg);
@@ -68,6 +75,7 @@ impl WLogMessage {
                 dst_ip_high: 0,
                 dst_ip_low: 0,
                 ifindex: 0,
+                timestamp: now_ns(),
             },
         };
         send_log(msg.msg);

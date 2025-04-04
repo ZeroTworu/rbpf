@@ -9,13 +9,17 @@ use yaml_rust2::YamlLoader;
 #[derive(Debug, Clone)]
 pub struct Settings {
     pub resolve_ptr_records: bool,
-    pub control_on: bool,
     pub rules_path: String,
+
+    pub control_on: bool,
     pub control_socket_path: String,
     pub control_socket_owner: String,
+    pub control_socket_chmod: u32,
+
     pub logs_on: bool,
     pub logs_socket_path: String,
     pub logs_socket_owner: String,
+    pub logs_socket_chmod: u32,
 }
 
 #[derive(Debug, Parser)]
@@ -44,9 +48,12 @@ pub async fn read_settings(ebpf: &mut Ebpf) -> anyhow::Result<Settings> {
             .unwrap()
             .to_string(),
         control_on: control["on"].as_bool().unwrap(),
+        control_socket_chmod: control["control_socket_chmod"].as_i64().unwrap() as u32,
+
         logs_on: logs["on"].as_bool().unwrap(),
         logs_socket_path: logs["logs_socket_path"].as_str().unwrap().to_string(),
         logs_socket_owner: logs["logs_socket_owner"].as_str().unwrap().to_string(),
+        logs_socket_chmod: logs["logs_socket_chmod"].as_i64().unwrap() as u32,
     };
 
     // TODO: Придумать как это красиво убрать в отдельный лоадер

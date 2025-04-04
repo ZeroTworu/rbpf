@@ -1,8 +1,8 @@
 <template>
   <tr>
     <td><strong>{{ rule.name }}</strong></td>
-    <td>{{ formatIpPort(rule, true) }}</td>
-    <td>{{ formatIpPort(rule, false) }}</td>
+    <td @click="openIpModal('source')">{{ formatIpPort(rule, true) }}</td>
+    <td @click="openIpModal('destination')">{{ formatIpPort(rule, false) }}</td>
       <td @click.stop>
         <v-select
             v-model="selectedProtocols"
@@ -59,6 +59,22 @@
       <v-icon @click="$emit('edit', rule)">mdi-pencil</v-icon>
     </td>
   </tr>
+  <v-dialog v-model="ipModalVisible" max-width="500px">
+    <v-card>
+      <v-card-title>Редактировать IP</v-card-title>
+      <v-card-text>
+        <v-checkbox v-model="editV4" label="IPv4" @change="toggleIpInput('v4')"></v-checkbox>
+        <v-text-field v-model="ipV4" :disabled="!editV4" label="IPv4 адрес"></v-text-field>
+
+        <v-checkbox v-model="editV6" label="IPv6" @change="toggleIpInput('v6')"></v-checkbox>
+        <v-text-field v-model="ipV6" :disabled="!editV6" label="IPv6 адрес"></v-text-field>
+      </v-card-text>
+      <v-card-actions>
+        <v-btn color="primary" @click="saveIpChanges">OK</v-btn>
+        <v-btn color="secondary" @click="ipModalVisible = false">Отмена</v-btn>
+      </v-card-actions>
+    </v-card>
+  </v-dialog>
 </template>
 
 <script setup lang="ts">
@@ -71,12 +87,58 @@ import { ProtocolType, ProtocolVersionType, TrafficType } from '@/store/modules/
 const props = defineProps({ rule: Object });
 defineEmits(['edit', 'switchOn', 'switchDrop']);
 
+
+const ipModalVisible = ref(false);
+const ipV4 = ref('');
+const ipV6 = ref('');
+const editV4 = ref(false);
+const editV6 = ref(false);
+
+const openIpModal = (type: string) => {
+  ipV4.value = formatIpV4(props.rule[`${type}_addr_v4`], props.rule[`${type}_mask_v4`]);
+  ipV6.value = formatIpPort(props.rule, type === 'source');
+  editV4.value = props.rule.v4;
+  editV6.value = props.rule.v6;
+  ipModalVisible.value = true;
+};
+
+const toggleIpInput = (type: string) => {
+  if (type === 'v4') editV4.value = !editV4.value;
+  if (type === 'v6') editV6.value = !editV6.value;
+};
+
+const saveIpChanges = () => {
+  props.rule.v4 = editV4.value;
+  props.rule.v6 = editV6.value;
+
+  store.dispatch('rules/updateRule', props.rule);
+  ipModalVisible.value = false;
+};
+
 const formatIpPort = (rule, isSrc: boolean) => {
   if (isSrc){
-    const ip = rule.v4 ? formatIpV4(rule.source_addr_v4, rule.source_mask_v4) : rule.v6 ? formatIpV6(rule.scr_ip_high, rule.scr_ip_low, rule.source_mask_v6) : "-";
-    return rule.source_port_start === rule.source_port_end ? `${ip}` : `${ip}:${rule.source_port_start}-${rule.source_port_end}`;
+    let ip = "";
+    if  (rule.v4 && !isSrc) {
+      ip = `${formatIpV4(rule.destination_addr_v4, rule.destination_mask_v4)}`
+    }
+    if  (rule.v4 && isSrc) {
+      ip = `${formatIpV4(rule.source_addr_v4, rule.source_mask_v4)}`
+    }
+    if (rule.v6 && !isSrc) {
+      ip = `${ip}  ${formatIpV6(rule.dst_ip_high, rule.dst_ip_low, rule.destination_mask_v6)}`
+    }
+    if (rule.v6 && isSrc) {
+      ip = `${ip}  ${formatIpV6(rule.scr_ip_high, rule.scr_ip_low, rule.source_mask_v6)}`
+    }
+    return rule.destination_port_start === rule.destination_port_end ? `${ip}` : `${ip}:${rule.destination_port_start}-${rule.destination_port_end}`;
   }
-  const ip = rule.v4 ? formatIpV4(rule.destination_addr_v4, rule. destination_mask_v4) : rule.v6 ? formatIpV6(rule.dst_ip_high, rule.dst_ip_low, rule.destination_mask_v6) : "-";
+  let ip = "";
+  if  (rule.v4) {
+        ip = `${formatIpV4(rule.destination_addr_v4, rule. destination_mask_v4)}`
+  }
+  if (rule.v6) {
+    ip = `${ip}  ${formatIpV6(rule.dst_ip_high, rule.dst_ip_low, rule.destination_mask_v6)}`
+  }
   return rule.destination_port_start === rule.destination_port_end ? `${ip}` : `${ip}:${rule.destination_port_start}-${rule.destination_port_end}`;
 };
 

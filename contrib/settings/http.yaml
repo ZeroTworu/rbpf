@@ -3,3 +3,8 @@ http_api:
   port: 8080
   control_socket_path: "/run/rbpf_control.sock"
   logs_socket_path: "/run/rbpf_logs.sock"
+  listen_logs: true
+  swagger_ui: true
+  cors:
+    - "http://localhost:5173"
+    - "http://127.0.0.1:5173"

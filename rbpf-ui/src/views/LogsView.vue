@@ -7,6 +7,9 @@
         class="elevation-1 flex-grow-1"
         density="comfortable"
     >
+      <template v-slot:item.timestamp="{ item }">
+        {{ formatTimestamp(item.timestamp) }}
+      </template>
       <!-- Поле "Адрес источника" -->
       <template v-slot:item.source="{ item }">
         {{ item.source_addr_v4 }}:{{ item.source_port }}
@@ -37,11 +40,13 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted } from "vue";
 import { useStore } from "vuex";
+import dayjs from "dayjs";
 
 const store = useStore();
 let ws: WebSocket | null = null;
 
 const headers = [
+  { title: "Время", key: "timestamp" },
   { title: "Тип траффика", key: "traffic_type" },
   { title: "Сетевой интерфейс", key: "if_name" },
   { title: "Адрес источника", key: "source" }, // Объединённое поле IP:PORT
@@ -53,6 +58,9 @@ const headers = [
 
 const logs = computed(() => store.getters["logs/logs"]);
 
+const formatTimestamp = (ts: number) => {
+  return dayjs.unix(ts).format("YYYY-MM-DD HH:mm:ss");
+};
 
 const connectWebSocket = () => {
   ws = new WebSocket("ws://127.0.0.1:8080/ws/logs");

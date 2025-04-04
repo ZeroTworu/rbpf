@@ -326,7 +326,6 @@ pub async fn load_rules(path: &str, ebpf: &mut Ebpf) -> anyhow::Result<()> {
         let srule = read_to_string(path).await?;
         let yrule = &YamlLoader::load_from_str(&srule)?[0];
         let rule = RuleWithName::new(yrule);
-        println!("{} {:?}", rule.name, rule.to_common_rule());
         rules.push(rule);
     }
 

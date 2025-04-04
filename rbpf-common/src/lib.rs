@@ -63,6 +63,7 @@ pub struct LogMessage {
     pub destination_port: u16,
 
     pub level: u8,
+    pub timestamp: u64,
 }
 
 #[cfg(feature = "user")]
@@ -121,5 +122,6 @@ pub mod user {
 
         pub level: u8,
         pub action: ActionType,
+        pub timestamp: u64,
     }
 }

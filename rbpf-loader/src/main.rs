@@ -41,11 +41,7 @@ async fn init_bpf() -> anyhow::Result<()> {
     let settings = Arc::new(settings::read_settings(&mut ebpf).await?);
     let logs_ring_buf = RingBuf::try_from(ebpf.take_map(logs::LOGS_RING_BUF).unwrap())?;
     let (tx, rx) = mpsc::channel::<WLogMessage>();
-    spawn(logs::log_listener(
-        logs_ring_buf,
-        settings.clone().resolve_ptr_records,
-        tx,
-    ));
+    spawn(logs::log_listener(logs_ring_buf, settings.clone(), tx));
 
     log_sender(settings.clone(), rx).await;
 

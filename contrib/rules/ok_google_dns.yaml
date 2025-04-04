@@ -19,8 +19,8 @@ drop: false
 source_addr_v4: "8.8.8.8"
 destination_addr_v4: "8.8.8.8"
 
-source_addr_v6: ""
-destination_addr_v6: ""
+source_addr_v6: "::1"
+destination_addr_v6: "fe80::d126:b61:f82e:789c"
 
 source_port_start: 0
 source_port_end: 0

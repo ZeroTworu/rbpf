@@ -13,11 +13,11 @@ drop: true
 input: true
 output: true
 
-v4: false
+v4: true
 v6: true
 
-source_addr_v4: ""
-destination_addr_v4: ""
+source_addr_v4: "127.0.0.1"
+destination_addr_v4: "127.0.0.1"
 
 source_addr_v6: "::1/128"
 destination_addr_v6: "::1/24"

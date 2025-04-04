@@ -1,10 +1,11 @@
-use crate::control::change_socket_owner;
+use crate::control::change_socket_owner_mode;
 use crate::rules::get_rule_name;
 use crate::settings::Settings;
 use aya::maps::{MapData, RingBuf};
 use core::net::IpAddr;
 use core::str::from_utf8;
 use libc::if_indextoname;
+use libc::{clock_gettime, timespec, CLOCK_MONOTONIC};
 use log::{debug, error, info, warn};
 use rbpf_common::user::{
     ActionType, LogMessageSerialized, ProtocolType, ProtocolVersionType, TrafficType,
@@ -12,10 +13,12 @@ use rbpf_common::user::{
 use rbpf_common::{LogMessage, DEBUG, INFO, WARN};
 use std::collections::HashMap;
 use std::ffi::CStr;
+use std::mem::MaybeUninit;
 use std::net::{Ipv4Addr, Ipv6Addr};
 use std::path::Path;
 use std::sync::mpsc;
 use std::sync::{Arc, LazyLock};
+use std::time::{Duration, SystemTime, UNIX_EPOCH};
 use tokio::io::unix::AsyncFd;
 use tokio::io::AsyncWriteExt;
 use tokio::net::UnixListener;
@@ -89,6 +92,7 @@ impl WLogMessage {
             source_port: self.msg.source_port,
             destination_port: self.msg.destination_port,
             rule_name,
+            timestamp: self.unix_time_stamp(),
         }
     }
     pub fn iface(&self) -> String {
@@ -232,11 +236,29 @@ impl WLogMessage {
             Err(_) => "".to_string(),
         }
     }
+
+    fn unix_time_stamp(&self) -> u64 {
+        let mut ts: timespec = unsafe { MaybeUninit::zeroed().assume_init() };
+        let res = unsafe { clock_gettime(CLOCK_MONOTONIC, &mut ts) };
+        if res != 0 {
+            return 0; // или обработка ошибки
+        }
+
+        let now_ktime_ns = (ts.tv_sec as u64) * 1_000_000_000 + (ts.tv_nsec as u64);
+
+        let now = SystemTime::now();
+        let boot_time = now - Duration::from_nanos(now_ktime_ns);
+        let event_time = boot_time + Duration::from_nanos(self.msg.timestamp);
+        event_time
+            .duration_since(UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_secs()
+    }
 }
 
 pub async fn log_listener(
     ring: RingBuf<MapData>,
-    resolve_ptr_records: bool,
+    settings: Arc<Settings>,
     tx: mpsc::Sender<WLogMessage>,
 ) -> anyhow::Result<()> {
     let (_, rx) = watch::channel(false);
@@ -254,12 +276,14 @@ pub async fn log_listener(
                         let msg: LogMessage = unsafe { std::ptr::read_unaligned(read.as_ptr() as *const _) };
                         let msg_wrapper: WLogMessage = WLogMessage { msg };
                         match msg_wrapper.msg.level {
-                            DEBUG => debug!("{}", msg_wrapper.log(resolve_ptr_records).await),
-                            INFO => info!("{}", msg_wrapper.log(resolve_ptr_records).await),
-                            WARN => warn!("{}", msg_wrapper.log(resolve_ptr_records).await),
-                            _ => error!("{}", msg_wrapper.log(resolve_ptr_records).await),
+                            DEBUG => debug!("{}", msg_wrapper.log(settings.resolve_ptr_records).await),
+                            INFO => info!("{}", msg_wrapper.log(settings.resolve_ptr_records).await),
+                            WARN => warn!("{}", msg_wrapper.log(settings.resolve_ptr_records).await),
+                            _ => error!("{}", msg_wrapper.log(settings.resolve_ptr_records).await),
                         }
-                        tx.send(msg_wrapper).unwrap()
+                        if settings.logs_on {
+                            tx.send(msg_wrapper).unwrap()
+                        }
                     }
 
                     guard.clear_ready();
@@ -281,9 +305,15 @@ pub async fn log_sender(settings: Arc<Settings>, rx: mpsc::Receiver<WLogMessage>
         if Path::new(&settings.logs_socket_path).exists() {
             std::fs::remove_file(&settings.logs_socket_path).unwrap();
         }
+
         let logs_listener = UnixListener::bind(&settings.logs_socket_path).unwrap();
         if settings.logs_on {
-            change_socket_owner(&settings.logs_socket_path, &settings.logs_socket_owner).unwrap();
+            change_socket_owner_mode(
+                &settings.logs_socket_path,
+                &settings.logs_socket_owner,
+                settings.logs_socket_chmod,
+            )
+            .unwrap();
             info!("Logs sock on {}", settings.logs_socket_path);
         } else {
             info!("Logs server is off.");
