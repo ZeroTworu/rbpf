@@ -307,18 +307,13 @@ pub async fn log_sender(settings: Arc<Settings>, rx: mpsc::Receiver<WLogMessage>
         }
 
         let logs_listener = UnixListener::bind(&settings.logs_socket_path).unwrap();
-        if settings.logs_on {
-            change_socket_owner_mode(
-                &settings.logs_socket_path,
-                &settings.logs_socket_owner,
-                settings.logs_socket_chmod,
-            )
-            .unwrap();
-            info!("Logs sock on {}", settings.logs_socket_path);
-        } else {
-            info!("Logs server is off.");
-            return;
-        }
+        change_socket_owner_mode(
+            &settings.logs_socket_path,
+            &settings.logs_socket_owner,
+            settings.logs_socket_chmod,
+        )
+        .unwrap();
+        info!("Logs socket on {}", settings.logs_socket_path);
         loop {
             let (mut socket, _) = logs_listener.accept().await.unwrap();
             loop {

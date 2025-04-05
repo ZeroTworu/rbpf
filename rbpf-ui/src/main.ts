@@ -26,4 +26,7 @@ const app = createApp(App);
 app.use(vuetify);
 app.use(store);
 app.use(router);
+
+store.dispatch("logs/connectWebSocket");
+
 app.mount("#app");

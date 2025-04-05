@@ -16,3 +16,6 @@ logs:
   logs_socket_path: "/run/rbpf_logs.sock"
   logs_socket_owner: "nobody"
   logs_socket_chmod: 666
+db:
+  on: true
+  path: "./rbpf.db"

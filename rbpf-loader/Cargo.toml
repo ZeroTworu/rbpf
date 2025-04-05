@@ -25,7 +25,8 @@ serde = { version = "1", features = ["derive"] }
 rbpf-common = { path = "../rbpf-common", features=["user"]}
 nix = "0.29.0"
 serde_json = "1.0.140"
-
+sqlx = { version = "0.8.3", features = ["sqlite", "runtime-tokio-native-tls", "macros", "migrate"] }
+libsqlite3-sys = { version = "*", features = ["bundled"] }
 
 [build-dependencies]
 anyhow = { workspace = true }

@@ -18,10 +18,12 @@ export interface LogMessage {
 
 export interface LogsState {
     logs: LogMessage[];
+    ws: WebSocket | null,
 }
 
 const state: LogsState = {
     logs: [],
+    ws: null as WebSocket | null,
 };
 
 const mutations = {
@@ -34,6 +36,9 @@ const mutations = {
     CLEAR_LOGS(state: LogsState) {
         state.logs = [];
     },
+    SET_WS(state: LogsState, ws: WebSocket) {
+        state.ws = ws;
+    },
 };
 
 const actions = {
@@ -42,6 +47,29 @@ const actions = {
     },
     clearLogs({ commit }) {
         commit("CLEAR_LOGS");
+    },
+    connectWebSocket({ commit, dispatch, state }: any) {
+        if (state.ws) return; // не подключаться повторно
+
+        const ws = new WebSocket("ws://127.0.0.1:8080/ws/logs");
+
+        ws.onmessage = (event) => {
+            try {
+                const data = JSON.parse(event.data);
+                dispatch("addLog", data);
+            } catch (error) {
+                console.error("ws.onmessage.ERROR:", error);
+            }
+        };
+
+        ws.onerror = (error) => console.error("ws.onerror:", error);
+
+        ws.onclose = () => {
+            commit("SET_WS", null);
+            setTimeout(() => dispatch("connectWebSocket"), 5000);
+        };
+
+        commit("SET_WS", ws);
     },
 };
 

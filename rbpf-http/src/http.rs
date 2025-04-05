@@ -52,31 +52,21 @@ impl Api {
             action: ControlAction::GetRules,
             rule: RuleWithName::from_empty(),
         };
-        match self.send_command(state, con).await {
-            Ok(mut socket) => {
-                let mut buffer = Vec::new();
-                let mut chunk = [0u8; 1024];
-
-                while let Ok(n) = socket.read(&mut chunk).await {
-                    if n == 0 {
-                        break;
-                    }
-                    buffer.extend_from_slice(&chunk[..n]);
-                }
-
-                match from_slice::<HashMap<u32, RuleWithName>>(&buffer) {
-                    Ok(rules) => Json(rules.into_values().collect::<Vec<RuleWithName>>()),
-                    Err(_) => Json(Vec::new()),
-                }
-            }
-            Err(_) => Json(Vec::new()),
-        }
+        self.send_and_read(state, con).await
     }
 
     #[oai(path = "/rules", method = "post")]
-    async fn create_rule(&self, _state: Data<&ApiState>, rule: Json<RuleWithName>) -> Json<String> {
-        println!("Create rule: {:?}", rule);
-        Json("Rule successfully created".to_string())
+    async fn create_rule(
+        &self,
+        state: Data<&ApiState>,
+        rule: Json<RuleWithName>,
+    ) -> Json<Vec<RuleWithName>> {
+        let wrule: &RuleWithName = rule.deref();
+        let con = Control {
+            action: ControlAction::CreateRule,
+            rule: wrule.clone(),
+        };
+        self.send_and_read(state, con).await
     }
 
     #[oai(path = "/rules/:id", method = "put")]
@@ -91,25 +81,7 @@ impl Api {
             action: ControlAction::UpdateRule,
             rule: wrule.clone(),
         };
-        match self.send_command(state, con).await {
-            Ok(mut socket) => {
-                let mut buffer = Vec::new();
-                let mut chunk = [0u8; 1024];
-
-                while let Ok(n) = socket.read(&mut chunk).await {
-                    if n == 0 {
-                        break;
-                    }
-                    buffer.extend_from_slice(&chunk[..n]);
-                }
-
-                match from_slice::<HashMap<u32, RuleWithName>>(&buffer) {
-                    Ok(rules) => Json(rules.into_values().collect::<Vec<RuleWithName>>()),
-                    Err(_) => Json(Vec::new()),
-                }
-            }
-            Err(_) => Json(Vec::new()),
-        }
+        self.send_and_read(state, con).await
     }
 
     async fn send_command(
@@ -121,6 +93,31 @@ impl Api {
         let serialized = serde_json::to_vec(&command)?;
         stream.write_all(&serialized).await?;
         Ok(stream)
+    }
+
+    async fn send_and_read(
+        &self,
+        state: Data<&ApiState>,
+        command: Control,
+    ) -> Json<Vec<RuleWithName>> {
+        match self.send_command(state, command).await {
+            Ok(mut socket) => {
+                let mut buffer = Vec::new();
+                let mut chunk = [0u8; 1024];
+
+                while let Ok(n) = socket.read(&mut chunk).await {
+                    if n == 0 {
+                        break;
+                    }
+                    buffer.extend_from_slice(&chunk[..n]);
+                }
+                match from_slice::<HashMap<u32, RuleWithName>>(&buffer) {
+                    Ok(rules) => Json(rules.into_values().collect::<Vec<RuleWithName>>()),
+                    Err(_) => Json(Vec::new()),
+                }
+            }
+            Err(_) => Json(Vec::new()),
+        }
     }
 }
 

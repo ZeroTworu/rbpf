@@ -1,3 +1,4 @@
+use crate::database;
 use crate::rules;
 use crate::rules::{Control, ControlAction};
 use crate::settings::Settings;
@@ -58,7 +59,7 @@ pub async fn control_loop(settings: Arc<Settings>, ebpf: &mut Ebpf) -> anyhow::R
                 let control = serde_json::from_slice::<Control>(received_data)?;
                 match control.action {
                     ControlAction::Reload => {
-                        rules::load_rules(&settings.rules_path, ebpf).await?;
+                        rules::load_rules_from_dir(&settings.rules_path, ebpf).await?;
                         socket.flush().await?;
                     }
                     ControlAction::GetRules => {
@@ -68,11 +69,25 @@ pub async fn control_loop(settings: Arc<Settings>, ebpf: &mut Ebpf) -> anyhow::R
                         socket.flush().await?;
                     }
                     ControlAction::UpdateRule => {
-                        rules::change_rule(control.rule.rule_id, control.rule).await;
+                        rules::change_rule(control.rule.clone()).await;
                         rules::reload_rules(ebpf).await?;
                         let rules = rules::get_rules().await;
                         let json_data = serde_json::to_vec(&rules)?;
                         socket.write_all(&json_data).await?;
+                        socket.flush().await?;
+                    }
+                    ControlAction::CreateRule => {
+                        let mut new_rule = control.rule.clone();
+                        new_rule.uindex = rules::get_rules_len().await;
+                        let rule_id = u32::try_from(database::insert_rule(&new_rule).await)?;
+                        if rule_id != 0 {
+                            new_rule.rule_id = rule_id;
+                            rules::set_rule(new_rule.clone()).await;
+                            rules::reload_rules(ebpf).await?;
+                            let rules = rules::get_rules().await;
+                            let json_data = serde_json::to_vec(&rules)?;
+                            socket.write_all(&json_data).await?;
+                        }
                         socket.flush().await?;
                     }
                 }

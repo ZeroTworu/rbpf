@@ -43,7 +43,11 @@ async fn init_bpf() -> anyhow::Result<()> {
     let (tx, rx) = mpsc::channel::<WLogMessage>();
     spawn(logs::log_listener(logs_ring_buf, settings.clone(), tx));
 
-    log_sender(settings.clone(), rx).await;
+    if settings.logs_on {
+        log_sender(settings.clone(), rx).await;
+    } else {
+        info!("Send logs to LogsSocket is disabled");
+    }
 
     if settings.control_on {
         control::control_loop(settings.clone(), &mut ebpf).await?;

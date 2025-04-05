@@ -41,6 +41,45 @@ export interface Rule {
     on: boolean;
     input: boolean;
     output: boolean;
+    ifindex: number;
+    v6: boolean;
+    v4: boolean;
+    uindex: number;
+    from_db: boolean;
+}
+
+function withDefaults(rule: Partial<Rule>): Rule {
+    return {
+        rule_id: 0,
+        name: '',
+        source_addr_v4: 0,
+        source_mask_v4: 0,
+        source_mask_v6: 0,
+        destination_addr_v4: 0,
+        destination_mask_v4: 0,
+        destination_mask_v6: 0,
+        source_port_start: 0,
+        source_port_end: 0,
+        destination_port_start: 0,
+        destination_port_end: 0,
+        dst_ip_high: 0,
+        dst_ip_low: 0,
+        src_ip_high: 0,
+        src_ip_low: 0,
+        tcp: false,
+        udp: false,
+        drop: false,
+        ok: false,
+        on: false,
+        input: false,
+        output: false,
+        ifindex: 0,
+        uindex: 0,
+        v6: false,
+        v4: false,
+        from_db: true,
+        ...rule,
+    };
 }
 
 export interface RulesState {
@@ -80,8 +119,8 @@ const actions = {
     async addRule({ commit }, rule: Rule) {
         try {
             console.log("ADD", rule);
-            const response = await Api.createRule(rule);
-            commit("ADD_RULE", response.data);
+            const response = await Api.createRule(withDefaults(rule));
+            commit("SET_RULES", response.data);
         } catch (error) {
             console.error("Ошибка при добавлении правила", error);
         }
@@ -97,9 +136,8 @@ const actions = {
     },
     async createRule({ commit }, rule: Rule) {
         try {
-            console.log("CREATE", rule);
             await Api.updateRule(rule);
-            commit("CREATE_RULE", rule);
+            commit("SET_RULES", rule);
         } catch (error) {
             console.error("Ошибка при создании правила", error);
         }
@@ -107,7 +145,7 @@ const actions = {
     async removeRule({ commit }, ruleId: number) {
         try {
             await Api.deleteRule(ruleId);
-            commit("REMOVE_RULE", ruleId);
+            commit("SET_RULES", ruleId);
         } catch (error) {
             console.error("Ошибка при удалении правила", error);
         }

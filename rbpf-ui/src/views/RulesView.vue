@@ -31,8 +31,8 @@ const headers = [
   { title: "Источник", key: "source" },
   { title: "Назначение", key: "destination" },
   { title: "Протокол", key: "protocol" },
-  { title: "Тип траффика", key: "traffic_type" },
   { title: "Версия", key: "version" },
+  { title: "Тип траффика", key: "traffic_type" },
   { title: "Действие", key: "action" },
   { title: "Активно", key: "on" },
   { title: "", key: "edit" },
@@ -52,7 +52,7 @@ const openDialog = (rule) => {
 };
 
 const saveRule = (rule) => {
-  if (editingRule.value) {
+  if (editingRule.value.rule_id) {
     store.dispatch("rules/updateRule", rule);
   } else {
     store.dispatch("rules/addRule", rule);
@@ -67,6 +67,7 @@ const switchOn = (rule) => {
 
 const switchDrop = (rule) => {
   rule.drop = !rule.drop;
+  rule.ok = !rule.ok;
   store.dispatch("rules/updateRule", rule);
 };
 
