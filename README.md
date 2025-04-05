@@ -24,12 +24,12 @@
 
 * `rbpf-loader`- Модуль загружающий `rbpf-ebpf`, и обеспечивающий связь между user space и eBPF (kernel space). Может создавать Unix Socket для приёма команд.
 
-  * `rbpf-ui` - WebUI (Single Page Application написанное на Vue.js v3). Служит для вывода информации и управления eBPF модулем. 
+* `rbpf-ui` - WebUI (Single Page Application написанное на Vue.js v3). Служит для вывода информации и управления eBPF модулем. 
 
 #### ![logs](assets/logs_table.png)
 
 
-#### ![rules](assets/rules_table.png)
+#### ![rules_table](assets/rules_table.png)
 
 #### Принцип работы
 
