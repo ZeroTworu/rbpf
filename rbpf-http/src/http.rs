@@ -1,16 +1,13 @@
 use crate::settings::Settings;
-use futures::{SinkExt, StreamExt};
-use log::{error, info, warn};
+use crate::websocket;
+use log::info;
 use poem::middleware::AddData;
 use poem::{
-    get, handler,
+    get,
     listener::TcpListener,
     middleware::Cors,
-    web::{
-        websocket::{Message, WebSocket},
-        Data, Path,
-    },
-    EndpointExt, IntoResponse, Route, Server,
+    web::{Data, Path},
+    EndpointExt, Route, Server,
 };
 use poem_openapi::{payload::Json, OpenApi, OpenApiService};
 use rbpf_common::logs::logs::LogMessageSerialized;
@@ -18,7 +15,6 @@ use rbpf_common::rules::rules::{Control, ControlAction, RuleWithName};
 use serde_json::from_slice;
 use std::collections::HashMap;
 use std::ops::Deref;
-use std::path::Path as FSPath;
 use std::sync::Arc;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::UnixStream;
@@ -121,70 +117,7 @@ impl Api {
     }
 }
 
-#[handler]
-pub async fn ws_logs(
-    ws: WebSocket,
-    data: Data<&broadcast::Sender<LogMessageSerialized>>,
-) -> impl IntoResponse {
-    let mut receiver = data.subscribe();
-    ws.on_upgrade(move |socket| async move {
-        let (mut sink, _) = socket.split();
-        while let Ok(msg) = receiver.recv().await {
-            match serde_json::to_string(&msg) {
-                Ok(json) => {
-                    if let Err(_) = sink.send(Message::Text(json)).await {
-                        break;
-                    }
-                }
-                Err(e) => println!("JSON serialization error: {:?}", e),
-            }
-        }
-    })
-}
-
-pub async fn logs_server(
-    logs_socket_path: &String,
-    sender: broadcast::Sender<LogMessageSerialized>,
-) -> anyhow::Result<()> {
-    if !FSPath::new(logs_socket_path).exists() {
-        warn!("Logs socket path {} does not exist", logs_socket_path);
-        return Ok(());
-    }
-    let stream = UnixStream::connect(logs_socket_path).await;
-
-    match stream {
-        Ok(mut stream) => {
-            info!("Connected to logs server.");
-            loop {
-                let mut len_buf = [0u8; 4];
-                if stream.read_exact(&mut len_buf).await.is_err() {
-                    break Ok(());
-                }
-                let msg_len = u32::from_be_bytes(len_buf) as usize;
-
-                let mut msg_buf = vec![0u8; msg_len];
-                if stream.read_exact(&mut msg_buf).await.is_err() {
-                    break Ok(());
-                }
-
-                let message: LogMessageSerialized = from_slice(&msg_buf)?;
-                if message.rule_id != 0 {
-                    match sender.send(message) {
-                        Ok(_) => {}
-                        Err(e) => warn!("Broadcast error: {}", e),
-                    }
-                    tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
-                }
-            }
-        }
-        Err(e) => {
-            error!("Logs server error: {}", e);
-            Err(anyhow::Error::msg(e))
-        }
-    }
-}
-
-pub async fn api_server(settings: Settings) -> anyhow::Result<()> {
+pub async fn http_ws_server(settings: Settings) -> anyhow::Result<()> {
     let api_service = OpenApiService::new(Api, "ReBPF API", "1.0").server("/api/v1");
     let swagger = api_service.clone().swagger_ui();
 
@@ -214,10 +147,10 @@ pub async fn api_server(settings: Settings) -> anyhow::Result<()> {
         let tx = broadcast::channel::<LogMessageSerialized>(2048 * 10).0;
         let tx_clone = tx.clone();
 
-        app = app.at("/ws/logs", get(ws_logs.data(tx_clone)));
+        app = app.at("/ws/logs", get(websocket::ws_logs.data(tx_clone)));
 
         tokio::spawn(async move {
-            let _ = logs_server(&settings.logs_socket_path, tx).await;
+            let _ = websocket::logs_server(&settings.logs_socket_path, tx).await;
         });
 
         let app = app.with(AddData::new(state)).with(cors);

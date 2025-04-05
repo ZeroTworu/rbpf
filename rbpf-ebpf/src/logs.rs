@@ -2,6 +2,7 @@ use crate::ip::ParseResult;
 use aya_ebpf::helpers::bpf_ktime_get_ns;
 use aya_ebpf::macros::map;
 use aya_ebpf::maps::RingBuf;
+use core::ptr::addr_of_mut;
 use network_types::ip::IpProto;
 use rbpf_common::logs::LogMessage;
 
@@ -91,7 +92,8 @@ impl WLogMessage {
 
 pub fn send_log(msg: LogMessage) {
     unsafe {
-        if let Some(mut buf) = LOGS_RING_BUF.reserve::<LogMessage>(0) {
+        let ring_buf = addr_of_mut!(LOGS_RING_BUF);
+        if let Some(mut buf) = (*ring_buf).reserve::<LogMessage>(0) {
             buf.write(msg);
             buf.submit(0);
         }

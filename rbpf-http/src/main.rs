@@ -7,6 +7,6 @@ async fn main() -> anyhow::Result<()> {
     env_logger::init();
     let settings = settings::read_settings().await?;
     info!("Starting http server...");
-    http::api_server(settings.clone()).await?;
+    http::http_ws_server(settings.clone()).await?;
     Ok(())
 }
