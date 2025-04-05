@@ -1,4 +1,13 @@
 target/*
 .idea/*
 **/*.rs.bk
-dist.tar.gz
+rbpf-build/*
+src/*
+pkg/*
+*.zst
+*.deb
+*.rpm
+rbpf-ui/.vite
+rbpf-ui/.vscode
+rpmbuild
+rbpf-deb

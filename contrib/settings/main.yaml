@@ -18,4 +18,4 @@ logs:
   logs_socket_chmod: 666
 db:
   on: true
-  path: "./rbpf.db"
+  path: "/opt/rbpf/rules.db"

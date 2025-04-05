@@ -1,0 +1,39 @@
+pkgname=rbpf
+pkgver=0.1.0
+pkgrel=1
+pkgdesc="Rust eBPF Firewall"
+arch=('x86_64')
+license=('MIT')
+depends=()
+makedepends=()
+source=()
+md5sums=()
+
+install=rbpf.install
+
+build() {
+  echo "Build is done inside Docker. Skipping build step."
+}
+
+package() {
+  install -Dm755 "$srcdir/opt/rbpf/bin/rbpf_loader" "$pkgdir/opt/bin/rbpf_loader"
+  install -Dm755 "$srcdir/opt/rbpf/bin/rbpf_http" "$pkgdir/opt/bin/rbpf_http"
+
+  mkdir -p "$pkgdir/opt/rbpf/"
+  cp -r "$srcdir/opt/rbpf/ui" "$pkgdir/opt/rbpf/"
+
+  install -Dm644 "$srcdir/opt/rbpf/systemd/rbpf-loader.service" "$pkgdir/usr/lib/systemd/system/rbpf-loader.service"
+  install -Dm644 "$srcdir/opt/rbpf/systemd/rbpf-http.service" "$pkgdir/usr/lib/systemd/system/rbpf-http.service"
+
+  cp -r "$srcdir/opt/rbpf/config" "$pkgdir/opt/rbpf/"
+  cp -r "$srcdir/opt/rbpf/config/rules" "$pkgdir/opt/rbpf/"
+  cp -r "$srcdir/opt/rbpf/config/migrations" "$pkgdir/opt/rbpf/"
+}
+
+post_install() {
+  echo "Running post-installation tasks..."
+  systemctl enable rbpf-loader.service
+  systemctl enable rbpf-http.service
+  systemctl start rbpf-loader.service
+  systemctl start rbpf-http.service
+}

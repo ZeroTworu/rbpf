@@ -8,6 +8,7 @@ use poem::{
     middleware::Cors,
     web::{Data, Path},
     EndpointExt, Route, Server,
+    endpoint::StaticFilesEndpoint,
 };
 use poem_openapi::{payload::Json, OpenApi, OpenApiService};
 use rbpf_common::logs::logs::LogMessageSerialized;
@@ -135,6 +136,13 @@ pub async fn http_ws_server(settings: Settings) -> anyhow::Result<()> {
     }
 
     let mut app = Route::new().nest("/api/v1", api_service);
+
+    let vue_root = settings.vue_dist_path.clone();
+    info!("Serving static frontend from: {}", vue_root);
+
+    if settings.vue_app_on {
+        app = app.nest_no_strip("/", StaticFilesEndpoint::new(vue_root.clone()).index_file("index.html"));
+    }
 
     if settings.swagger_ui {
         info!("Swagger UI on /docs");

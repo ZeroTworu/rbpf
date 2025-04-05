@@ -1,0 +1,13 @@
+[Unit]
+Description=RBPF HTTP Server
+After=network.target
+
+[Service]
+Type=simple
+User=nobody
+Environment=RUST_LOG=info
+ExecStart=/opt/bin/rbpf_http -c /opt/rbpf/config/settings/http.yaml
+Restart=on-failure
+
+[Install]
+WantedBy=multi-user.target

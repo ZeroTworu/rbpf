@@ -51,7 +51,7 @@ const actions = {
     connectWebSocket({ commit, dispatch, state }: any) {
         if (state.ws) return; // не подключаться повторно
 
-        const ws = new WebSocket("ws://127.0.0.1:8080/ws/logs");
+        const ws = new WebSocket(import.meta.env.VITE_WS_LOGS_URL);
 
         ws.onmessage = (event) => {
             try {

@@ -5,6 +5,8 @@ http_api:
   logs_socket_path: "/run/rbpf_logs.sock"
   listen_logs: true
   swagger_ui: true
+  vue_dist_path: "/opt/rbpf/ui/dist/html"
+  vue_app_on: true
   cors:
     - "http://localhost:5173"
     - "http://127.0.0.1:5173"

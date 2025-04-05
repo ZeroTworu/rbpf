@@ -11,6 +11,8 @@ pub struct Settings {
     pub logs_socket_path: String,
     pub listen_logs: bool,
     pub swagger_ui: bool,
+    pub vue_dist_path: String,
+    pub vue_app_on: bool,
     pub cors: Vec<String>,
 }
 
@@ -40,6 +42,8 @@ pub async fn read_settings() -> anyhow::Result<Settings> {
         logs_socket_path: http["logs_socket_path"].as_str().unwrap().to_string(),
         listen_logs: http["listen_logs"].as_bool().unwrap(),
         swagger_ui: http["swagger_ui"].as_bool().unwrap(),
+        vue_app_on: http["vue_app_on"].as_bool().unwrap(),
+        vue_dist_path: http["vue_dist_path"].as_str().unwrap().to_string(),
         cors,
     };
     Ok(settings_struct)

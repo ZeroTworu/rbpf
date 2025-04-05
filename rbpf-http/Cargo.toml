@@ -14,7 +14,7 @@ log = { workspace = true }
 tokio = { workspace = true, features = ["rt-multi-thread", "macros"]  }
 clap = { workspace = true, features = ["derive"] }
 yaml-rust2 = "0.10.1"
-poem = { version = "3.1.8",features = ["websocket"]  }
+poem = { version = "3.1.8",features = ["websocket", "static-files"]  }
 poem-openapi = { version = "5.1.12", features = ["swagger-ui", "websocket"] }
 serde = { version = "1", features = ["derive"] }
 rbpf-common = { path = "../rbpf-common", features=["user"]}

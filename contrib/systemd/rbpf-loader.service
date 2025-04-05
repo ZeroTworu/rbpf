@@ -1,0 +1,13 @@
+[Unit]
+Description=RBPF Loader
+After=network.target
+
+[Service]
+Type=simple
+User=root
+Environment=RUST_LOG=info
+ExecStart=/opt/bin/rbpf_loader -c /opt/rbpf/config/settings/main.yaml -r /opt/rbpf/config/rules/ -m /opt/rbpf/config/migrations/
+Restart=on-failure
+
+[Install]
+WantedBy=multi-user.target

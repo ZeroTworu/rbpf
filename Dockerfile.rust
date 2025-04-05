@@ -1,0 +1,38 @@
+FROM rust:1.76-slim AS builder
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    clang llvm libclang-dev build-essential pkg-config \
+    ca-certificates curl git \
+    libssl-dev \
+    build-essential \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
+
+
+RUN rustup toolchain install nightly && \
+    rustup component add rust-src --toolchain nightly && \
+    rustup default stable
+
+
+RUN cargo install cargo-generate bpf-linker bindgen-cli
+
+
+WORKDIR /app
+COPY ./contrib/ ./contrib/
+COPY ./rbpf-common/ ./rbpf-common/
+COPY ./rbpf-ebpf/ ./rbpf-ebpf/
+COPY ./rbpf-http/ ./rbpf-http/
+COPY ./rbpf-loader/ ./rbpf-loader/
+COPY ./Cargo.toml ./Cargo.toml
+COPY ./Cargo.lock ./Cargo.lock
+
+RUN cargo build --release --target-dir /app/target
+
+FROM debian:bookworm-slim
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    ca-certificates libssl-dev libclang1 && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+COPY --from=builder /app/target/release/rbpf_loader /usr/local/bin/rbpf_loader
+COPY --from=builder /app/target/release/rbpf_http /usr/local/bin/rbpf_http
