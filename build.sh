@@ -54,6 +54,10 @@ prepare_package_contents() {
 build_zst() {
   echo "📦 Building .zst package inside Docker..."
 
+  build_rust_binaries
+  build_vue
+  prepare_package_contents
+
   rm -rf ./src
   mkdir -p ./src
   cp -r ./rbpf-build/* ./src/
@@ -131,9 +135,6 @@ main() {
       build_rust_binaries
       ;;
     --build-zst)
-      build_rust_binaries
-      build_vue
-      prepare_package_contents
       build_zst
       clean
       ;;
@@ -143,6 +144,14 @@ main() {
       ;;
     --build-rpm)
       build_rpm
+      clean
+      ;;
+    --build-vue)
+      build_vue
+      clean
+      ;;
+    --prepare)
+      prepare_package_contents
       clean
       ;;
     *)

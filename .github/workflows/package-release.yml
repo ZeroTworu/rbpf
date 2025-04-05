@@ -1,0 +1,49 @@
+name: Build Packages
+
+on:
+  push:
+    tags:
+      - '*'
+
+jobs:
+  build-packages:
+    runs-on: "ubuntu-latest"
+    env:
+      DOCKER_BUILDKIT: 1
+
+    steps:
+      - name: "📥 Checkout repository"
+        uses: "actions/checkout@v3"
+
+      - name: "🐳 Set up Docker Buildx"
+        uses: "docker/setup-buildx-action@v3"
+
+      - name: "⚙️ Set up QEMU (for cross-platform, if needed)"
+        uses: "docker/setup-qemu-action@v3"
+
+      - name: "🧱 Build Rust binaries"
+        run: "./build.sh --build-bin"
+
+      - name: "🌐 Build Vue frontend"
+        run: "./build.sh --build-vue"
+
+      - name: "⚙️ Prepare package contents"
+        run: "./build.sh --prepare"
+
+      - name: "📦 Build ZST package"
+        run: "./build.sh --build-zst"
+
+      - name: "📦 Build DEB package"
+        run: "./build.sh --build-deb"
+
+      - name: "📦 Build RPM package"
+        run: "./build.sh --build-rpm"
+
+      - name: "📤 Upload artifacts"
+        uses: "actions/upload-artifact@v4"
+        with:
+          name: "rbpf-packages"
+          path: |
+            *.zst
+            *.deb
+            *.rpm
