@@ -18,7 +18,6 @@ poem = { version = "3.1.8",features = ["websocket"]  }
 poem-openapi = { version = "5.1.12", features = ["swagger-ui", "websocket"] }
 serde = { version = "1", features = ["derive"] }
 rbpf-common = { path = "../rbpf-common", features=["user"]}
-rbpf-loader = { path = "../rbpf-loader" }
 serde_json = "1.0.140"
 futures = "0.3.31"
 

@@ -1,7 +1,7 @@
 use crate::ip::ContextWrapper;
 use crate::{logs, rules};
 use aya_ebpf::bindings::{xdp_action, TC_ACT_PIPE, TC_ACT_SHOT};
-use rbpf_common::{DEBUG, ERROR, INFO, WARN};
+use rbpf_common::logs::{DEBUG, ERROR, INFO, WARN};
 
 pub fn handle_ingress_v6(ctx: &ContextWrapper) -> Result<u32, ()> {
     let ret = match ctx.to_parse_result(false, true) {

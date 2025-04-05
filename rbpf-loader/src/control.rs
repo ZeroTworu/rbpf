@@ -1,9 +1,9 @@
 use crate::database;
 use crate::rules;
-use crate::rules::{Control, ControlAction};
 use crate::settings::Settings;
 use aya::Ebpf;
 use log::info;
+use rbpf_common::rules::rules::{Control, ControlAction};
 use std::fs;
 use std::path::Path;
 use std::sync::Arc;

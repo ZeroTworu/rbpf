@@ -3,7 +3,7 @@ use aya_ebpf::helpers::bpf_ktime_get_ns;
 use aya_ebpf::macros::map;
 use aya_ebpf::maps::RingBuf;
 use network_types::ip::IpProto;
-use rbpf_common::LogMessage;
+use rbpf_common::logs::LogMessage;
 
 #[map]
 static mut LOGS_RING_BUF: RingBuf = RingBuf::with_byte_size(512 * 1024, 0);

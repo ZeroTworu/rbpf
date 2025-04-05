@@ -1,5 +1,5 @@
-use crate::rules::RuleWithName;
 use log::{info, warn};
+use rbpf_common::rules::rules::RuleWithName;
 use sqlx::{migrate::Migrator, Row, SqlitePool};
 use std::net::Ipv6Addr;
 use std::path::Path;
@@ -31,7 +31,10 @@ pub fn get_db() -> &'static SqlitePool {
 pub async fn migrate(migrations_path: &str) -> anyhow::Result<()> {
     let path = Path::new(migrations_path);
     if !path.exists() {
-        warn!("Can not migrate database from {}, path does not exist.", path.display());
+        warn!(
+            "Can not migrate database from {}, path does not exist.",
+            path.display()
+        );
         return Ok(());
     }
     info!("Migrating database from {}", path.display());

@@ -1,7 +1,7 @@
 pub mod rule;
 
 use core::cmp::PartialEq;
-use rbpf_common::Rule;
+use rbpf_common::rules::Rule;
 
 pub struct WRule {
     pub rule: &'static Rule,

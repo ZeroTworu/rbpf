@@ -13,8 +13,8 @@ use poem::{
     EndpointExt, IntoResponse, Route, Server,
 };
 use poem_openapi::{payload::Json, OpenApi, OpenApiService};
-use rbpf_common::user::LogMessageSerialized;
-use rbpf_loader::rules::{Control, ControlAction, RuleWithName};
+use rbpf_common::logs::logs::LogMessageSerialized;
+use rbpf_common::rules::rules::{Control, ControlAction, RuleWithName};
 use serde_json::from_slice;
 use std::collections::HashMap;
 use std::ops::Deref;

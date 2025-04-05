@@ -5,7 +5,8 @@ edition = "2021"
 
 [features]
 default = []
-user = ["aya", "serde", "yaml-rust2", "rand", "poem-openapi", "libc"]
+user = ["aya", "serde", "yaml-rust2", "rand", "poem-openapi", "libc", "std"]
+std = []
 
 [dependencies]
 aya = { workspace = true, optional = true }

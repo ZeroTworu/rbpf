@@ -7,10 +7,10 @@ use core::str::from_utf8;
 use libc::if_indextoname;
 use libc::{clock_gettime, timespec, CLOCK_MONOTONIC};
 use log::{debug, error, info, warn};
-use rbpf_common::user::{
+use rbpf_common::logs::logs::{
     ActionType, LogMessageSerialized, ProtocolType, ProtocolVersionType, TrafficType,
 };
-use rbpf_common::{LogMessage, DEBUG, INFO, WARN};
+use rbpf_common::logs::{LogMessage, DEBUG, INFO, WARN};
 use std::collections::HashMap;
 use std::ffi::CStr;
 use std::mem::MaybeUninit;
