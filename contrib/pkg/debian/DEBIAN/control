@@ -1,0 +1,7 @@
+Package: rbpf
+Version: 0.1.0
+Section: utils
+Priority: optional
+Architecture: amd64
+Maintainer: Zero Two <hau.au.999@gmail.com>
+Description: Rust eBPF Firewall

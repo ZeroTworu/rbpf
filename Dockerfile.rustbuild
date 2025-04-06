@@ -1,0 +1,12 @@
+FROM hanyuu/rbpf-rust-builder:cached AS builder
+
+WORKDIR /app
+COPY ./rbpf-common/ ./rbpf-common/
+COPY ./rbpf-ebpf/ ./rbpf-ebpf/
+COPY ./rbpf-http/ ./rbpf-http/
+COPY ./rbpf-loader/ ./rbpf-loader/
+COPY ./contrib/ ./contrib/
+COPY ./Cargo.toml ./Cargo.toml
+COPY ./Cargo.lock ./Cargo.lock
+
+RUN cargo build --release

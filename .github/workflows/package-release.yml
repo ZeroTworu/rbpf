@@ -1,0 +1,98 @@
+name: "Build Packages"
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+
+permissions:
+  contents: "write"
+
+jobs:
+  build-packages:
+    runs-on: "ubuntu-latest"
+    env:
+      DOCKER_BUILDKIT: 1
+
+    steps:
+      - name: "📥 Checkout repository"
+        uses: "actions/checkout@v3"
+
+      - name: "🐳 Set up Docker Buildx"
+        uses: "docker/setup-buildx-action@v3"
+
+      - name: "⚙️ Set up QEMU (for cross-platform, if needed)"
+        uses: "docker/setup-qemu-action@v3"
+
+      - name: "🧱 Build Rust binaries"
+        run: "./build.sh --build-bin"
+
+      - name: "🌐 Build Vue frontend"
+        run: "./build.sh --build-vue"
+
+      - name: "⚙️ Prepare package contents"
+        run: "./build.sh --prepare"
+
+      - name: "📦 Build ZST package"
+        run: "./build.sh --build-zst"
+
+      - name: "📦 Build DEB package"
+        run: "./build.sh --build-deb"
+
+      - name: "📦 Build RPM package"
+        run: "./build.sh --build-rpm"
+
+      - name: "📦 Build bin's tar.gz"
+        run: "./build.sh --build-bin-zip"
+
+      - name: "📦 Build WebUI tar.gz"
+        run: "./build.sh --build-vue-zip"
+
+      - name: "📦 Rename artifacts"
+        run: |
+          TAG_NAME=$(echo "${GITHUB_REF#refs/tags/}" | sed 's/\//_/g')
+
+          for file in *.zst; do
+            [ -e "$file" ] || continue
+            base=$(basename "$file" .pkg.tar.zst)
+            mv "$file" "${base}-${TAG_NAME}.pkg.tar.zst"
+          done
+
+          for file in *.deb; do
+            [ -e "$file" ] || continue
+            base=$(basename "$file" .deb)
+            mv "$file" "${base}-${TAG_NAME}.deb"
+          done
+
+          for file in *.rpm; do
+            [ -e "$file" ] || continue
+            base=$(basename "$file" .rpm)
+            mv "$file" "${base}-${TAG_NAME}.rpm"
+          done
+
+          if [ -f rbpf-vue.tar.gz ]; then
+            mv rbpf-vue.tar.gz rbpf-vue-${TAG_NAME}.tar.gz
+          fi
+
+          if [ -f rbpf-binaries.tar.gz ]; then
+            mv rbpf-binaries.tar.gz rbpf-binaries-${TAG_NAME}.tar.gz
+          fi
+
+      - name: "📤 Upload artifacts"
+        uses: "actions/upload-artifact@v4"
+        with:
+          name: "rbpf-packages"
+          path: |
+            *.zst
+            *.deb
+            *.rpm
+            *.tar.gz
+      - name: "📤 Upload packages to GitHub Release"
+        uses: "softprops/action-gh-release@v1"
+        if: startsWith(github.ref, 'refs/tags/')
+        with:
+          files: |
+            *.zst
+            *.deb
+            *.rpm
+            *.tar.gz

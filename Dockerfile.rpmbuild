@@ -1,16 +1,16 @@
-# Dockerfile.rpmbuild
 FROM fedora:latest
 
+ARG USER_ID
+
 RUN dnf install -y rpm-build rpmdevtools sudo && \
-    useradd -m builder && echo "builder ALL=(ALL) NOPASSWD: ALL" >> /etc/sudoers && \
+    useradd -u $USER_ID -m builder && echo "builder ALL=(ALL) NOPASSWD: ALL" >> /etc/sudoers && \
     mkdir -p /home/builder/rpmbuild/{BUILD,RPMS,SOURCES,SPECS,SRPMS} && \
     chown -R builder:builder /home/builder
 
 USER builder
 WORKDIR /home/builder/rpmbuild
 
-# Копируем только нужное
-COPY rbpf-build /home/builder/rbpf-build
-COPY contrib/pkg /home/builder/pkg
+COPY --chown=builder:builder rbpf-build /home/builder/rbpf-build
+COPY --chown=builder:builder contrib/pkg /home/builder/pkg
 
 CMD ["bash"]

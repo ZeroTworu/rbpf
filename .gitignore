@@ -7,6 +7,7 @@ pkg/*
 *.zst
 *.deb
 *.rpm
+rbpf-*.tar.gz
 rbpf-ui/.vite
 rbpf-ui/.vscode
 rpmbuild
