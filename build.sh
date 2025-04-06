@@ -145,6 +145,18 @@ clean() {
   rm -rf ./pkg/
 }
 
+help() {
+  echo "USE ./build.sh [PARAM]:
+        * --build-bin - Сборка Rust приложения.
+        * --build-bin-zip - Сборка и упаковка Rust приложения.
+        * --build-vue - Сборка WebUI приложения.
+        * --build-vue-zip - Сборка и упаковка WebUI приложения.
+        * --build-zst - Полная сборка пакета формата Arch Linux.
+        * --build-deb - Полная сборка пакета формата Debian Linux.
+        * --build-rpm - Полная сборка пакета формата Red Hat Linux.
+        "
+}
+
 main() {
   check_docker
 
@@ -181,7 +193,7 @@ main() {
       clean
       ;;
     *)
-      echo "Usage: $0 [--build-bin | --build-zst | --build-deb | --build-rpm]"
+      help
       exit 1
       ;;
   esac
