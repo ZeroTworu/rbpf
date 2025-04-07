@@ -28,14 +28,18 @@ RUN rustup toolchain install nightly && \
 RUN cargo install bpf-linker --locked
 
 WORKDIR /app
-COPY ../../rbpf-common/ ./rbpf-common/
-COPY ../../rbpf-ebpf/ ./rbpf-ebpf/
-COPY ../../rbpf-http/ ./rbpf-http/
-COPY ../../rbpf-loader/ ./rbpf-loader/
-COPY ../../contrib/ ./contrib/
 COPY ../../Cargo.toml ./Cargo.toml
 COPY ../../Cargo.lock ./Cargo.lock
 
+COPY ../../rbpf-loader/Cargo.toml ./rbpf-loader/Cargo.toml
+
+COPY ../../rbpf-http/Cargo.toml ./rbpf-http/Cargo.toml
+
+COPY ../../rbpf-common/Cargo.toml ./rbpf-common/Cargo.toml
+
+COPY ../../rbpf-ebpf/Cargo.toml ./rbpf-ebpf/Cargo.toml
+
+RUN cargo fetch
 ENV OPENSSL_NO_PKG_CONFIG=1
 ENV OPENSSL_DIR=/usr/arm-linux-gnueabihf
 ENV OPENSSL_LIB_DIR=/usr/lib/arm-linux-gnueabihf
@@ -47,6 +51,16 @@ ENV AR_armv7_unknown_linux_gnueabihf=arm-linux-gnueabihf-ar
 ENV RUSTFLAGS="-C linker=arm-linux-gnueabihf-gcc"
 
 RUN cargo fetch
+RUN cargo install bpf-linker --locked
+
+COPY ../../rbpf-common/ ./rbpf-common/
+COPY ../../rbpf-ebpf/ ./rbpf-ebpf/
+COPY ../../rbpf-http/ ./rbpf-http/
+COPY ../../rbpf-loader/ ./rbpf-loader/
+COPY ../../contrib/ ./contrib/
+
+
+
 RUN cargo build --release --target armv7-unknown-linux-gnueabihf \
     --package rbpf-loader \
     --package rbpf-http \

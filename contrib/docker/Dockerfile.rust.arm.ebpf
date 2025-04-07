@@ -13,14 +13,27 @@ RUN rustup toolchain install nightly && \
     rustup default nightly
 
 WORKDIR /app
-COPY ../../rbpf-common/ ./rbpf-common/
-COPY ../../rbpf-ebpf/ ./rbpf-ebpf/
-COPY ../../rbpf-http/ ./rbpf-http/
-COPY ../../rbpf-loader/ ./rbpf-loader/
+
 COPY ../../Cargo.toml ./Cargo.toml
 COPY ../../Cargo.lock ./Cargo.lock
 
+COPY ../../rbpf-loader/Cargo.toml ./rbpf-loader/Cargo.toml
+
+COPY ../../rbpf-http/Cargo.toml ./rbpf-http/Cargo.toml
+
+COPY ../../rbpf-common/Cargo.toml ./rbpf-common/Cargo.toml
+
+COPY ../../rbpf-ebpf/Cargo.toml ./rbpf-ebpf/Cargo.toml
+
+RUN cargo fetch
+
 RUN cargo install bpf-linker --locked
+
+COPY ./rbpf-common/ ./rbpf-common/
+COPY ./rbpf-ebpf/ ./rbpf-ebpf/
+COPY ./rbpf-http/ ./rbpf-http/
+COPY ./rbpf-loader/ ./rbpf-loader/
+COPY ./contrib/ ./contrib/
 
 RUN cargo build --release \
     --target bpfel-unknown-none \

@@ -69,8 +69,8 @@ build_rust_binaries_generic() {
   mkdir -p "$BIN_PATH"
   docker cp "extract-bin-$ARCH":/app/target/$FULL_PATH/rbpf_loader "$BIN_PATH/rbpf_loader"
   docker cp "extract-bin-$ARCH":/app/target/$FULL_PATH/rbpf_http "$BIN_PATH/rbpf_http"
-  if [[ "$ARCH" == "arm" ]]; then
-    docker cp "extract-bin-$ARCH":/app/ebpf/rbpf.o ./rbpf-build/opt/rbpf/bin/rbpf.o
+  if [[ "$ARCH" == "armv7" ]]; then
+    docker cp "extract-bin-$ARCH":/app/ebpf/rbpf.o "$BIN_PATH/rbpf.o"
   fi
   docker rm "extract-bin-$ARCH"
   echo "✅ Rust bin's for $ARCH built successfully."

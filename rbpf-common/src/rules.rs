@@ -1,5 +1,5 @@
-#[derive(Copy, Clone, Debug)]
-#[repr(C)]
+#[repr(C, align(8))]
+#[derive(Clone, Copy, Debug)]
 pub struct Rule {
     pub drop: bool,
     pub ok: bool,
@@ -8,6 +8,16 @@ pub struct Rule {
     pub tcp: bool,
     pub udp: bool,
     pub on: bool,
+    pub input: bool,
+    pub output: bool,
+
+    #[cfg(target_arch = "x86_64")]
+    pub _reserved: bool,
+    #[cfg(target_arch = "x86_64")]
+    pub _pad1: [u8; 6],
+
+    #[cfg(target_arch = "arm")]
+    pub _pad1: [u8; 5], // здесь можно убрать _reserved, т.к. и так выравнивается
 
     pub source_addr_v6: u128,
     pub destination_addr_v6: u128,
@@ -22,13 +32,13 @@ pub struct Rule {
     pub destination_port_start: u16,
     pub destination_port_end: u16,
 
-    pub input: bool,
-    pub output: bool,
-
     pub source_mask_v4: u8,
     pub destination_mask_v4: u8,
     pub source_mask_v6: u8,
     pub destination_mask_v6: u8,
+
+    #[cfg(target_arch = "x86_64")]
+    pub _pad2: [u8; 4],
 }
 
 #[cfg(feature = "user")]
@@ -228,42 +238,73 @@ pub mod rules {
             }
         }
 
+        #[cfg(target_arch = "arm")]
         pub fn to_common_rule(&self) -> Rule {
             Rule {
-                source_port_end: self.source_port_end,
-                source_port_start: self.source_port_start,
-
-                destination_port_end: self.destination_port_end,
-                destination_port_start: self.destination_port_start,
-
                 drop: self.drop,
                 ok: self.ok,
-
-                on: self.on,
-
                 v4: self.v4,
                 v6: self.v6,
-
                 tcp: self.tcp,
                 udp: self.udp,
-
+                on: self.on,
                 input: self.input,
                 output: self.output,
+                _pad1: [0; 5],
 
-                destination_mask_v4: self.destination_mask_v4,
-                destination_mask_v6: self.destination_mask_v6,
-
-                source_mask_v4: self.source_mask_v4,
-                source_mask_v6: self.source_mask_v6,
-
-                destination_addr_v4: self.source_addr_v4,
+                source_addr_v6: ((self.src_ip_high as u128) << 64) | (self.src_ip_low as u128),
                 destination_addr_v6: ((self.dst_ip_high as u128) << 64) | (self.dst_ip_low as u128),
 
                 source_addr_v4: self.source_addr_v4,
-                source_addr_v6: ((self.src_ip_high as u128) << 64) | (self.src_ip_low as u128),
-
+                destination_addr_v4: self.destination_addr_v4,
                 rule_id: self.rule_id,
                 ifindex: self.ifindex,
+
+                source_port_start: self.source_port_start,
+                source_port_end: self.source_port_end,
+                destination_port_start: self.destination_port_start,
+                destination_port_end: self.destination_port_end,
+
+                source_mask_v4: self.source_mask_v4,
+                destination_mask_v4: self.destination_mask_v4,
+                source_mask_v6: self.source_mask_v6,
+                destination_mask_v6: self.destination_mask_v6,
+            }
+        }
+
+        #[cfg(target_arch = "x86_64")]
+        pub fn to_common_rule(&self) -> Rule {
+            Rule {
+                drop: self.drop,
+                ok: self.ok,
+                v4: self.v4,
+                v6: self.v6,
+                tcp: self.tcp,
+                udp: self.udp,
+                on: self.on,
+                input: self.input,
+                output: self.output,
+                _reserved: false,
+                _pad1: [0; 6],
+
+                source_addr_v6: ((self.src_ip_high as u128) << 64) | (self.src_ip_low as u128),
+                destination_addr_v6: ((self.dst_ip_high as u128) << 64) | (self.dst_ip_low as u128),
+
+                source_addr_v4: self.source_addr_v4,
+                destination_addr_v4: self.destination_addr_v4,
+                rule_id: self.rule_id,
+                ifindex: self.ifindex,
+
+                source_port_start: self.source_port_start,
+                source_port_end: self.source_port_end,
+                destination_port_start: self.destination_port_start,
+                destination_port_end: self.destination_port_end,
+
+                source_mask_v4: self.source_mask_v4,
+                destination_mask_v4: self.destination_mask_v4,
+                source_mask_v6: self.source_mask_v6,
+                destination_mask_v6: self.destination_mask_v6,
+                _pad2: [0; 4],
             }
         }
         pub fn from_empty() -> Self {

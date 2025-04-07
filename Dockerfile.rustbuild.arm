@@ -1,13 +1,20 @@
 FROM hanyuu/rbpf-rust-builder:arm-ebpf AS ebpf-builder
 
 WORKDIR /app
+
+COPY ./Cargo.toml ./Cargo.toml
+COPY ./Cargo.lock ./Cargo.lock
+COPY ./rbpf-loader/Cargo.toml ./rbpf-loader/Cargo.toml
+COPY ./rbpf-http/Cargo.toml ./rbpf-http/Cargo.toml
+COPY ./rbpf-common/Cargo.toml ./rbpf-common/Cargo.toml
+COPY ./rbpf-ebpf/Cargo.toml ./rbpf-ebpf/Cargo.toml
+RUN cargo fetch
+
 COPY ./rbpf-common/ ./rbpf-common/
 COPY ./rbpf-ebpf/ ./rbpf-ebpf/
 COPY ./rbpf-http/ ./rbpf-http/
 COPY ./rbpf-loader/ ./rbpf-loader/
 COPY ./contrib/ ./contrib/
-COPY ./Cargo.toml ./Cargo.toml
-COPY ./Cargo.lock ./Cargo.lock
 
 RUN cargo build --release \
     --target bpfel-unknown-none \
@@ -18,13 +25,19 @@ RUN cargo build --release \
 FROM hanyuu/rbpf-rust-builder:arm-elf AS elf-builder
 
 WORKDIR /app
+COPY ./Cargo.toml ./Cargo.toml
+COPY ./Cargo.lock ./Cargo.lock
+COPY ./rbpf-loader/Cargo.toml ./rbpf-loader/Cargo.toml
+COPY ./rbpf-http/Cargo.toml ./rbpf-http/Cargo.toml
+COPY ./rbpf-common/Cargo.toml ./rbpf-common/Cargo.toml
+COPY ./rbpf-ebpf/Cargo.toml ./rbpf-ebpf/Cargo.toml
+RUN cargo fetch
+
 COPY ./rbpf-common/ ./rbpf-common/
 COPY ./rbpf-ebpf/ ./rbpf-ebpf/
 COPY ./rbpf-http/ ./rbpf-http/
 COPY ./rbpf-loader/ ./rbpf-loader/
 COPY ./contrib/ ./contrib/
-COPY ./Cargo.toml ./Cargo.toml
-COPY ./Cargo.lock ./Cargo.lock
 
 COPY --from=ebpf-builder /app/target/bpfel-unknown-none/release/rbpf /app/ebpf/rbpf.o
 
@@ -33,5 +46,4 @@ RUN cargo build --release --target armv7-unknown-linux-gnueabihf \
     --package rbpf-http \
     --no-default-features \
     --target-dir=/app/target/
-
 

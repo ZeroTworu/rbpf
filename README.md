@@ -43,7 +43,8 @@
 #### Быстрая сборка:
 * `./build.sh --build-bin` - Сборка Rust приложения (x86_64).
 * `./build.sh --build-bin-armv7` - Сборка Rust приложения (armv7).
-
+  * Работоспособность сборки под armv7 проверена в QEMU.
+      #### ![armv7](assets/armv7.png)
 ------
 * `./build.sh --build-bin-zip` - Сборка и упаковка Rust приложения (x86_64).
 * `./build.sh --build-bin-zip-armv7` - Сборка и упаковка Rust приложения (armv7).

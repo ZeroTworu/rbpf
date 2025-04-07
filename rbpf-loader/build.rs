@@ -16,6 +16,7 @@ fn main() -> anyhow::Result<()> {
         .find(|cargo_metadata::Package { name, .. }| name == "rbpf-ebpf")
         .ok_or_else(|| anyhow!("rbpf-ebpf package not found"))?;
 
+    println!("cargo:warning=Compiling for: {}", std::env::var("CARGO_CFG_TARGET_ARCH")?);
     aya_build::build_ebpf([ebpf_package])
 }
 
