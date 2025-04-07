@@ -94,7 +94,7 @@ build_vue() {
   docker build -f Dockerfile.vuebuild -t rbpf-ui-build .
   docker create --name extract-ui rbpf-ui-build
   mkdir -p ./rbpf-build/opt/rbpf/ui/dist
-  docker cp extract-ui:/app/dist ./rbpf-build/opt/rbpf/ui/dist
+  docker cp extract-ui:/app/dist ./rbpf-build/opt/rbpf/ui/
   docker rm extract-ui
   echo "✅ Vue WebUI built successfully."
 }
