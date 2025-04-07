@@ -1,4 +1,4 @@
-use anyhow::{anyhow, Context as _};
+use anyhow::{Context as _, anyhow};
 use aya_build::cargo_metadata;
 
 fn main() -> anyhow::Result<()> {
@@ -16,7 +16,9 @@ fn main() -> anyhow::Result<()> {
         .find(|cargo_metadata::Package { name, .. }| name == "rbpf-ebpf")
         .ok_or_else(|| anyhow!("rbpf-ebpf package not found"))?;
 
-    println!("cargo:warning=Compiling for: {}", std::env::var("CARGO_CFG_TARGET_ARCH")?);
+    println!(
+        "cargo:warning=Compiling for: {}",
+        std::env::var("CARGO_CFG_TARGET_ARCH")?
+    );
     aya_build::build_ebpf([ebpf_package])
 }
-

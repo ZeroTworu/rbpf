@@ -1,11 +1,12 @@
 use crate::database;
 use crate::rules;
-use aya::programs::{SchedClassifier, TcAttachType, Xdp, XdpFlags};
 use aya::Ebpf;
+use aya::programs::{SchedClassifier, TcAttachType, Xdp, XdpFlags};
 use clap::Parser;
 use log::{info, warn};
 use tokio::fs::read_to_string;
-use yaml_rust2::YamlLoader;
+use tokio::process::Command;
+use yaml_rust2::{Yaml, YamlLoader};
 
 #[derive(Debug, Clone)]
 pub struct Settings {
@@ -36,6 +37,9 @@ pub struct Opt {
 
     #[clap(short, long, default_value = "./migrations/")]
     pub migrations: String,
+
+    #[clap(short, long)]
+    pub force: bool,
 }
 
 pub async fn read_settings(ebpf: &mut Ebpf) -> anyhow::Result<Settings> {
@@ -78,7 +82,12 @@ pub async fn read_settings(ebpf: &mut Ebpf) -> anyhow::Result<Settings> {
         info!("Database off.")
     }
 
-    // TODO: Придумать как это красиво убрать в отдельный лоадер
+    init_ifaces(settings, ebpf, opt.force).await?;
+
+    Ok(settings_struct)
+}
+
+async fn init_ifaces(settings: Vec<Yaml>, ebpf: &mut Ebpf, force: bool) -> anyhow::Result<()> {
     let interfaces = &settings[0]["interfaces"];
 
     match interfaces["output"].as_vec() {
@@ -88,6 +97,9 @@ pub async fn read_settings(ebpf: &mut Ebpf) -> anyhow::Result<Settings> {
             program_egress.load()?;
             for iface in interfaces {
                 let iface = iface.as_str().unwrap();
+                if force {
+                    force_out(iface).await
+                }
                 program_egress.attach(&iface, TcAttachType::Egress)?;
                 info!("Append output listener to: {}", iface);
             }
@@ -102,12 +114,34 @@ pub async fn read_settings(ebpf: &mut Ebpf) -> anyhow::Result<Settings> {
 
             for iface in interfaces {
                 let iface = iface.as_str().unwrap();
+
+                if force {
+                    force_in(iface).await;
+                }
+
                 program_ingress.attach(&iface, XdpFlags::default())?;
                 info!("Append input listener to: {}", iface);
             }
         }
         None => warn!("No input interfaces found"),
     }
+    Ok(())
+}
 
-    Ok(settings_struct)
+async fn force_in(ifname: &str) {
+    warn!("Force INPUT for {}", ifname);
+    Command::new("ip")
+        .args(["link", "set", "dev", ifname, "xdp", "off"])
+        .output()
+        .await
+        .unwrap();
+}
+
+async fn force_out(ifname: &str) {
+    warn!("Force OUTPUT for {}", ifname);
+    Command::new("tc")
+        .args(["qdisc", "add", "dev", ifname, "clsact"])
+        .output()
+        .await
+        .unwrap();
 }

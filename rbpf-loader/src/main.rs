@@ -1,14 +1,15 @@
 use crate::logs::WLogMessage;
-use aya::maps::RingBuf;
 use aya::Ebpf;
+use aya::maps::RingBuf;
 use log::{debug, info};
 use rbpf_loader::control;
 use rbpf_loader::logs;
 use rbpf_loader::logs::log_sender;
 use rbpf_loader::settings;
-use std::sync::mpsc;
 use std::sync::Arc;
-use tokio::signal::unix::{signal, SignalKind};
+use std::sync::mpsc;
+use tokio::process::Command;
+use tokio::signal::unix::{SignalKind, signal};
 use tokio::task::spawn;
 
 #[tokio::main]
@@ -64,8 +65,8 @@ async fn get_rbpf() -> anyhow::Result<Ebpf> {
 
     #[cfg(not(feature = "embed-ebpf"))]
     {
+        use std::path::PathBuf;
         use tokio::fs;
-        use std::path::{ PathBuf };
 
         let mut path = PathBuf::from("/app/ebpf/rbpf.o");
         if !path.exists() {

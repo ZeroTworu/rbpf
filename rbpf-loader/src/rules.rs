@@ -1,9 +1,9 @@
 use crate::database;
-use aya::maps::{HashMap, MapData};
 use aya::Ebpf;
 use aya::Pod;
+use aya::maps::{HashMap, MapData};
 use log::{info, warn};
-use rbpf_common::{rules::rules::RuleWithName, rules::Rule};
+use rbpf_common::{rules::Rule, rules::rules::RuleWithName};
 use std::collections::HashMap as RustHashMap;
 use std::fs::read_dir;
 use std::sync::Arc;

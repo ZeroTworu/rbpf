@@ -4,7 +4,7 @@ pub mod v6;
 use crate::ip::v4::{handle_egress_v4, handle_ingress_v4};
 use crate::ip::v6::{handle_egress_v6, handle_ingress_v6};
 use crate::rules::{Action, WRule};
-use aya_ebpf::bindings::{xdp_action, TC_ACT_PIPE};
+use aya_ebpf::bindings::{TC_ACT_PIPE, xdp_action};
 use aya_ebpf::programs::{TcContext, XdpContext};
 use core::net::Ipv6Addr;
 use network_types::eth::{EthHdr, EtherType};

@@ -1,15 +1,15 @@
 use futures::{SinkExt, StreamExt};
 use log::{error, info, warn};
-use poem::web::websocket::{Message, WebSocket};
 use poem::web::Data;
-use poem::{handler, IntoResponse};
+use poem::web::websocket::{Message, WebSocket};
+use poem::{IntoResponse, handler};
 use rbpf_common::logs::logs::LogMessageSerialized;
 use serde_json::from_slice;
 use std::path::Path as FSPath;
 use tokio::io::AsyncReadExt;
 use tokio::net::UnixStream;
 use tokio::sync::broadcast;
-use tokio::time::{sleep, Duration};
+use tokio::time::{Duration, sleep};
 
 #[handler]
 pub async fn ws_logs(

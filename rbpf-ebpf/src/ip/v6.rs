@@ -1,6 +1,6 @@
 use crate::ip::ContextWrapper;
 use crate::{logs, rules};
-use aya_ebpf::bindings::{xdp_action, TC_ACT_PIPE, TC_ACT_SHOT};
+use aya_ebpf::bindings::{TC_ACT_PIPE, TC_ACT_SHOT, xdp_action};
 use rbpf_common::logs::{DEBUG, ERROR, INFO, WARN};
 
 pub fn handle_ingress_v6(ctx: &ContextWrapper) -> Result<u32, ()> {
@@ -10,7 +10,7 @@ pub fn handle_ingress_v6(ctx: &ContextWrapper) -> Result<u32, ()> {
             return {
                 logs::WLogMessage::send_from("ERR IN v6", ERROR);
                 Ok(xdp_action::XDP_PASS)
-            }
+            };
         }
     };
 
@@ -40,7 +40,7 @@ pub fn handle_egress_v6(ctx: &ContextWrapper) -> Result<i32, ()> {
             return {
                 logs::WLogMessage::send_from("ERR v6", ERROR);
                 Ok(TC_ACT_PIPE)
-            }
+            };
         }
     };
 

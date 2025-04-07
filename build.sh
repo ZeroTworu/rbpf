@@ -34,7 +34,7 @@ build_rust_arm_cache() {
 }
 
 build_node_cache() {
-  docker build -f Dockerfile.node -t hanyuu/rbpf-node-builder:cached .
+  docker build -f ./contrib/docker/Dockerfile.node -t hanyuu/rbpf-node-builder:cached .
   docker push hanyuu/rbpf-node-builder:cached
 }
 
@@ -233,6 +233,10 @@ help() {
         * --build-zst - Полная сборка пакета формата Arch Linux (x86_64).
         * --build-deb - Полная сборка пакета формата Debian Linux (x86_64).
         * --build-rpm - Полная сборка пакета формата Red Hat Linux (x86_64).
+
+        * --build-node-cache - Сборка образа для сборки фронта.
+        * --build-rust-cache - Сборка образа для сборки Rust bin's под x86_64.
+        * --build-rust-cache-armv7 - Сборка образа для сборки Rust bin's под armv7.
         "
 }
 

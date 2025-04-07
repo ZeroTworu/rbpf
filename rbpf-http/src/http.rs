@@ -3,14 +3,14 @@ use crate::websocket;
 use log::info;
 use poem::middleware::AddData;
 use poem::{
+    EndpointExt, Route, Server,
+    endpoint::StaticFilesEndpoint,
     get,
     listener::TcpListener,
     middleware::Cors,
     web::{Data, Path},
-    EndpointExt, Route, Server,
-    endpoint::StaticFilesEndpoint,
 };
-use poem_openapi::{payload::Json, OpenApi, OpenApiService};
+use poem_openapi::{OpenApi, OpenApiService, payload::Json};
 use rbpf_common::logs::logs::LogMessageSerialized;
 use rbpf_common::rules::rules::{Control, ControlAction, RuleWithName};
 use serde_json::from_slice;
@@ -141,7 +141,10 @@ pub async fn http_ws_server(settings: Settings) -> anyhow::Result<()> {
     info!("Serving static frontend from: {}", vue_root);
 
     if settings.vue_app_on {
-        app = app.nest_no_strip("/", StaticFilesEndpoint::new(vue_root.clone()).index_file("index.html"));
+        app = app.nest_no_strip(
+            "/",
+            StaticFilesEndpoint::new(vue_root.clone()).index_file("index.html"),
+        );
     }
 
     if settings.swagger_ui {

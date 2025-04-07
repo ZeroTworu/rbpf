@@ -1,6 +1,6 @@
 use log::{info, warn};
 use rbpf_common::rules::rules::RuleWithName;
-use sqlx::{migrate::Migrator, Row, SqlitePool};
+use sqlx::{Row, SqlitePool, migrate::Migrator};
 use std::net::Ipv6Addr;
 use std::path::Path;
 use std::str::FromStr;

@@ -5,29 +5,29 @@ use aya::maps::{MapData, RingBuf};
 use core::net::IpAddr;
 use core::str::from_utf8;
 use libc::if_indextoname;
-use libc::{clock_gettime, timespec, CLOCK_MONOTONIC};
+use libc::{CLOCK_MONOTONIC, clock_gettime, timespec};
 use log::{debug, error, info, warn};
 use rbpf_common::logs::logs::{
     ActionType, LogMessageSerialized, ProtocolType, ProtocolVersionType, TrafficType,
 };
-use rbpf_common::logs::{LogMessage, DEBUG, INFO, WARN};
+use rbpf_common::logs::{DEBUG, INFO, LogMessage, WARN};
 use std::collections::HashMap;
 use std::ffi::CStr;
 use std::mem::MaybeUninit;
 use std::net::{Ipv4Addr, Ipv6Addr};
+use std::os::raw::c_char;
 use std::path::Path;
 use std::sync::mpsc;
 use std::sync::{Arc, LazyLock};
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
-use tokio::io::unix::AsyncFd;
 use tokio::io::AsyncWriteExt;
+use tokio::io::unix::AsyncFd;
 use tokio::net::UnixListener;
-use tokio::sync::{watch, RwLock};
+use tokio::sync::{RwLock, watch};
+use trust_dns_resolver::TokioAsyncResolver;
 use trust_dns_resolver::config::{ResolverConfig, ResolverOpts};
 use trust_dns_resolver::error::ResolveError;
 use trust_dns_resolver::lookup::ReverseLookup;
-use trust_dns_resolver::TokioAsyncResolver;
-use std::os::raw::c_char;
 
 pub const LOGS_RING_BUF: &str = "LOGS_RING_BUF";
 

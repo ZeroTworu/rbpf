@@ -2,7 +2,7 @@
 #![no_main]
 
 use aya_ebpf::{
-    bindings::{xdp_action, TC_ACT_SHOT},
+    bindings::{TC_ACT_SHOT, xdp_action},
     macros::{classifier, xdp},
     programs::{TcContext, XdpContext},
 };
