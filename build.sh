@@ -1,5 +1,28 @@
 #!/usr/bin/env bash
 
+
+### Допилить!
+#set -euo pipefail
+#
+#IMAGE="hanyuu/rbpf-rust-builder:xtask"
+#WORKDIR="$(pwd)"
+#
+#run_xtask() {
+#  mkdir -p .cargo-cache
+#  chown "$(id -u):$(id -g)" .cargo-cache
+#
+#  docker run --rm \
+#    -v "$WORKDIR":/app \
+#    -v "$WORKDIR/.cargo-cache":/cargo-home \
+#    -v /var/run/docker.sock:/var/run/docker.sock \
+#    -e CARGO_HOME=/cargo-home \
+#    -w /app \
+#    "$IMAGE" \
+#    cargo xtask "$@"
+#}
+#
+#run_xtask "$@"
+
 set -e
 
 REQUIRED_DOCKER_VERSION="20.10.0"

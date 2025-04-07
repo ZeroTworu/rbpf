@@ -1,6 +1,6 @@
 [workspace]
 resolver = "2"
-members = ["rbpf-loader", "rbpf-ebpf", "rbpf-common", "rbpf-http"]
+members = ["rbpf-loader", "rbpf-ebpf", "rbpf-common", "rbpf-http", "xtask"]
 default-members = ["rbpf-loader", "rbpf-common", "rbpf-http"]
 
 [workspace.dependencies]

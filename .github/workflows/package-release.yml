@@ -14,18 +14,21 @@ jobs:
     steps:
       - uses: actions/checkout@v3
       - uses: docker/setup-buildx-action@v3
-      - run: ./build.sh --build-bin
+      - name: "📦 Run x86_64 build bin"
+        uses: "docker://hanyuu/rbpf-rust-builder:xtask"
+      - run: "cargo xtask build-bin x86_64"
       - uses: actions/upload-artifact@v4
         with:
           name: build-bin
           path: rbpf-build/opt/rbpf/bin/
-
   build-bin-armv7:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
       - uses: docker/setup-buildx-action@v3
-      - run: ./build.sh --build-bin-armv7
+      - name: "📦 Run armv7 build bin"
+        uses: "docker://hanyuu/rbpf-rust-builder:xtask"
+      - run: "cargo xtask build-bin armv7"
       - uses: actions/upload-artifact@v4
         with:
           name: build-bin-arm-v7
@@ -35,14 +38,16 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
-      - run: ./build.sh --build-vue
+      - name: "📦 Run WebUI build"
+        uses: "docker://hanyuu/rbpf-rust-builder:xtask"
+      - run: cargo xtask build-vue
       - uses: actions/upload-artifact@v4
         with:
           name: build-vue
           path: rbpf-build/opt/rbpf/ui/
 
   prepare:
-    needs: [build-bin-x86_64, build-bin-armv7, build-vue]
+    needs: [ build-bin-x86_64, build-bin-armv7, build-vue ]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
@@ -54,7 +59,9 @@ jobs:
         with:
           name: build-vue
           path: rbpf-build/opt/rbpf/ui/
-      - run: ./build.sh --prepare
+      - name: "📦 Run prepare contents"
+        uses: "docker://hanyuu/rbpf-rust-builder:xtask"
+      - run: cargo xtask prepare
       - uses: actions/upload-artifact@v4
         with:
           name: build-contents
@@ -63,36 +70,32 @@ jobs:
   package-zst:
     needs: prepare
     runs-on: ubuntu-latest
-
     steps:
       - uses: actions/checkout@v3
-
       - uses: actions/download-artifact@v4
         with:
           name: build-contents
           path: rbpf-build/
-
-      - run: ./build.sh --build-zst
-
-      - uses: actions/upload-artifact@v4
+      - name: "📦 Run build .zst package"
+        uses: "docker://hanyuu/rbpf-rust-builder:xtask"
+      - run: "cargo xtask build-pkg zst"
+      - uses: "actions/upload-artifact@v4"
         with:
-          name: zst
+          name: "zst"
           path: "*.zst"
 
   package-deb:
     needs: prepare
     runs-on: ubuntu-latest
-
     steps:
       - uses: actions/checkout@v3
-
       - uses: actions/download-artifact@v4
         with:
           name: build-contents
           path: rbpf-build/
-
-      - run: ./build.sh --build-deb
-
+      - name: "📦 Run build .deb package"
+        uses: "docker://hanyuu/rbpf-rust-builder:xtask"
+      - run: "cargo xtask build-pkg deb"
       - uses: actions/upload-artifact@v4
         with:
           name: deb
@@ -101,17 +104,15 @@ jobs:
   package-rpm:
     needs: prepare
     runs-on: ubuntu-latest
-
     steps:
       - uses: actions/checkout@v3
-
       - uses: actions/download-artifact@v4
         with:
           name: build-contents
           path: rbpf-build/
-
-      - run: ./build.sh --build-rpm
-
+      - name: "📦 Run build .rpm package"
+        uses: "docker://hanyuu/rbpf-rust-builder:xtask"
+      - run: "cargo xtask build-pkg rpm"
       - uses: actions/upload-artifact@v4
         with:
           name: rpm
@@ -120,20 +121,18 @@ jobs:
   package-zip:
     needs: prepare
     runs-on: ubuntu-latest
-
     steps:
       - uses: actions/checkout@v3
-
       - uses: actions/download-artifact@v4
         with:
           name: build-contents
           path: rbpf-build/
-
+      - name: "📦 Run build simple .tar.gz with binaries & WebUI"
+        uses: "docker://hanyuu/rbpf-rust-builder:xtask"
       - run: |
-          ./build.sh --build-bin-zip
-          ./build.sh --build-bin-zip-armv7
-          ./build.sh --build-vue-zip
-
+          cargo xtask build-bin-zip x86_64
+          cargo xtask build-bin-zip armv7
+          cargo xtask build-vue-zip
       - uses: actions/upload-artifact@v4
         with:
           name: zip
@@ -142,10 +141,8 @@ jobs:
   upload:
     needs: [ package-zst, package-deb, package-rpm, package-zip ]
     runs-on: ubuntu-latest
-
     steps:
       - uses: actions/checkout@v3
-
       - name: "⬇️ Download all artifacts"
         uses: actions/download-artifact@v4
         with:
@@ -159,24 +156,25 @@ jobs:
 
       - name: "📦 Rename artifacts"
         run: |
-            cd all-artifacts
-            TAG_NAME=$(echo "${GITHUB_REF#refs/tags/}" | sed 's/\//_/g')
-      
-            find -name '*.zst' -print0 | while IFS= read -r -d '' f; do
-              mv "$f" "${f%.pkg.tar.zst}-${TAG_NAME}.pkg.tar.zst"
-            done
-        
-            find -name '*.deb' -print0 | while IFS= read -r -d '' f; do
-              mv "$f" "${f%.deb}-${TAG_NAME}.deb"
-            done
-        
-            find -name '*.rpm' -print0 | while IFS= read -r -d '' f; do
-              mv "$f" "${f%.rpm}-${TAG_NAME}.rpm"
-            done
-          
-            find -name '*.tar.gz' -print0 | while IFS= read -r -d '' f; do
-              mv "$f" "${f%.tar.gz}-${TAG_NAME}.tar.gz"
-            done
+          cd all-artifacts
+          TAG_NAME=$(echo "${GITHUB_REF#refs/tags/}" | sed 's/\//_/g')
+
+          find -name '*.zst' -print0 | while IFS= read -r -d '' f; do
+            mv "$f" "${f%.pkg.tar.zst}-${TAG_NAME}.pkg.tar.zst"
+          done
+
+          find -name '*.deb' -print0 | while IFS= read -r -d '' f; do
+            mv "$f" "${f%.deb}-${TAG_NAME}.deb"
+          done
+
+          find -name '*.rpm' -print0 | while IFS= read -r -d '' f; do
+            mv "$f" "${f%.rpm}-${TAG_NAME}.rpm"
+          done
+
+          find -name '*.tar.gz' -print0 | while IFS= read -r -d '' f; do
+            mv "$f" "${f%.tar.gz}-${TAG_NAME}.tar.gz"
+          done
+
       - name: "📤 Upload to GitHub Release"
         uses: softprops/action-gh-release@v1
         if: startsWith(github.ref, 'refs/tags/')
