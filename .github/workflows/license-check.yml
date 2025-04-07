@@ -1,0 +1,28 @@
+name: "License Check"
+
+on:
+  push:
+    branches:
+      - "master"
+  pull_request:
+    branches:
+      - "master"
+
+jobs:
+  license-check:
+    name: "Check Dependencies Licenses"
+    runs-on: ubuntu-latest
+
+    container:
+      image: "hanyuu/rust:license.check"
+
+    steps:
+      - name: "Checkout code"
+        uses: "actions/checkout@v3"
+
+      - name: "Run license check"
+        run: "cargo deny check licenses"
+
+      - name: "Handle failure (optional)"
+        if: failure()
+        run: "echo \"License check failed! Please review the denied licenses.\""

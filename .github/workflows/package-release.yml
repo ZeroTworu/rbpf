@@ -160,8 +160,6 @@ jobs:
       - name: "📦 Rename artifacts"
         run: |
             cd all-artifacts
-            tree
-            ls
             TAG_NAME=$(echo "${GITHUB_REF#refs/tags/}" | sed 's/\//_/g')
       
             find -name '*.zst' -print0 | while IFS= read -r -d '' f; do

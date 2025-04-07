@@ -1,12 +1,14 @@
 [package]
 name = "rbpf-ebpf"
 version = "0.2.0"
-edition = "2021"
+edition = "2024"
+license = "MIT"
 
 [dependencies]
 aya-ebpf = { workspace = true }
-rbpf-common = { path = "../rbpf-common"}
 network-types = "0.0.7"
+
+rbpf-common = { path = "../rbpf-common"}
 
 [build-dependencies]
 which = { workspace = true }

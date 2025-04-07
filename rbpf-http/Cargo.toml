@@ -1,7 +1,8 @@
 [package]
 name = "rbpf-http"
 version = "0.2.1"
-edition = "2021"
+edition = "2024"
+license = "MIT"
 
 [features]
 default = []
@@ -13,19 +14,19 @@ env_logger = { workspace = true }
 log = { workspace = true }
 tokio = { workspace = true, features = ["rt-multi-thread", "macros"]  }
 clap = { workspace = true, features = ["derive"] }
-yaml-rust2 = "0.10.1"
+yaml-rust2 = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+
 poem = { version = "3.1.8",features = ["websocket", "static-files"]  }
 poem-openapi = { version = "5.1.12", features = ["swagger-ui", "websocket"] }
-serde = { version = "1", features = ["derive"] }
-rbpf-common = { path = "../rbpf-common", features=["user"]}
-serde_json = "1.0.140"
 futures = "0.3.31"
 
+rbpf-common = { path = "../rbpf-common", features=["user"]}
 
 
 [build-dependencies]
 anyhow = { workspace = true }
-aya-build = { workspace = true }
 
 
 [[bin]]
