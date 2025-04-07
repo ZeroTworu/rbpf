@@ -8,7 +8,6 @@ use rbpf_loader::logs::log_sender;
 use rbpf_loader::settings;
 use std::sync::Arc;
 use std::sync::mpsc;
-use tokio::process::Command;
 use tokio::signal::unix::{SignalKind, signal};
 use tokio::task::spawn;
 

@@ -1,0 +1,11 @@
+FROM rust:latest
+
+RUN apt-get update && apt-get install -y \
+    build-essential \
+    libssl-dev \
+    cmake \
+    pkg-config
+
+RUN cargo install xtasks
+
+CMD ["bash"]
