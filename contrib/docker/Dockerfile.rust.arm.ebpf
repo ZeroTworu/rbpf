@@ -1,0 +1,29 @@
+FROM rust:slim AS ebpf-builder
+
+RUN apt-get update && \
+    apt-get install -y \
+    clang \
+    llvm \
+    libelf-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+RUN rustup toolchain install nightly && \
+    rustup component add rust-src --toolchain nightly && \
+    rustup update nightly && \
+    rustup default nightly
+
+WORKDIR /app
+COPY ../../rbpf-common/ ./rbpf-common/
+COPY ../../rbpf-ebpf/ ./rbpf-ebpf/
+COPY ../../rbpf-http/ ./rbpf-http/
+COPY ../../rbpf-loader/ ./rbpf-loader/
+COPY ../../Cargo.toml ./Cargo.toml
+COPY ../../Cargo.lock ./Cargo.lock
+
+RUN cargo install bpf-linker --locked
+
+RUN cargo build --release \
+    --target bpfel-unknown-none \
+    -p rbpf-ebpf \
+    -Z build-std=core \
+    -Z build-std-features=compiler-builtins-mem

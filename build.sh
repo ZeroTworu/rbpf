@@ -17,16 +17,76 @@ check_docker() {
   fi
 }
 
-build_rust_binaries() {
-  echo "🚀 Building Rust binaries..."
-  rm -rf ./rbpf-build/
-  docker build -f Dockerfile.rustbuild -t rbpf-build .
-  docker create --name extract-bin rbpf-build
-  mkdir -p ./rbpf-build/opt/rbpf/bin/
-  docker cp extract-bin:/app/target/release/rbpf_loader ./rbpf-build/opt/rbpf/bin/
-  docker cp extract-bin:/app/target/release/rbpf_http ./rbpf-build/opt/rbpf/bin/
-  docker rm extract-bin
-  echo "✅ Rust bin's built successfully."
+build_rust_cache() {
+  docker build -f ./contrib/docker/Dockerfile.rust.x86_64 -t hanyuu/rbpf-rust-builder:x86_64 .
+  docker push hanyuu/rbpf-rust-builder:x86_64
+}
+
+build_rust_arm_cache() {
+  echo "Build armv7 eBPF module"
+  docker build -f ./contrib/docker/Dockerfile.rust.arm.ebpf -t hanyuu/rbpf-rust-builder:arm-ebpf .
+  echo "Build armv7 ELF modules"
+  docker build -f ./contrib/docker/Dockerfile.rust.arm.elf -t hanyuu/rbpf-rust-builder:arm-elf .
+  echo "Push images"
+  docker push hanyuu/rbpf-rust-builder:arm-ebpf
+  docker push hanyuu/rbpf-rust-builder:arm-elf
+  echo "Done"
+}
+
+build_node_cache() {
+  docker build -f Dockerfile.node -t hanyuu/rbpf-node-builder:cached .
+  docker push hanyuu/rbpf-node-builder:cached
+}
+
+build_rust_binaries_generic() {
+  ARCH=$1
+  TAG="ERROR"
+  DOCKERFILE="ERROR"
+  BIN_PATH="./rbpf-build/opt/rbpf/bin/$ARCH/"
+
+  if [[ "$ARCH" == "armv7" ]]; then
+    FULL_PATH="armv7-unknown-linux-gnueabihf/release"
+    DOCKERFILE="Dockerfile.rustbuild.arm"
+    TAG="rbpf-build-armv7"
+  elif [[ "$ARCH" == "mips" ]]; then
+    TAG="rbpf-build-mips"
+    DOCKERFILE="Dockerfile.rustbuild.mips"
+  elif [[ "$ARCH" == "x86_64" ]]; then
+      TAG="rbpf-build-x86_64"
+      FULL_PATH="release"
+      DOCKERFILE="Dockerfile.rustbuild.x86_64"
+      BIN_PATH="./rbpf-build/opt/rbpf/bin/"
+  fi
+
+  echo "🚀 Building Rust binaries for $ARCH..."
+
+  if [[ "$CI" != "true" ]]; then
+    rm -rf ./rbpf-build/
+  fi
+
+  docker build -f $DOCKERFILE -t $TAG .
+  docker create --name "extract-bin-$ARCH" $TAG
+  mkdir -p "$BIN_PATH"
+  docker cp "extract-bin-$ARCH":/app/target/$FULL_PATH/rbpf_loader "$BIN_PATH/rbpf_loader"
+  docker cp "extract-bin-$ARCH":/app/target/$FULL_PATH/rbpf_http "$BIN_PATH/rbpf_http"
+  if [[ "$ARCH" == "arm" ]]; then
+    docker cp "extract-bin-$ARCH":/app/ebpf/rbpf.o ./rbpf-build/opt/rbpf/bin/rbpf.o
+  fi
+  docker rm "extract-bin-$ARCH"
+  echo "✅ Rust bin's for $ARCH built successfully."
+}
+
+
+build_rust_binaries_x86_x64() {
+  build_rust_binaries_generic "x86_64"
+}
+
+build_rust_binaries_armv7() {
+  build_rust_binaries_generic "armv7"
+}
+
+build_rust_binaries_mips() {
+  build_rust_binaries_generic "mips"
 }
 
 build_vue() {
@@ -54,12 +114,14 @@ prepare_package_contents() {
 build_zst() {
   echo "📦 Building .zst package inside Docker..."
 
-  build_rust_binaries
-  build_vue
-  prepare_package_contents
-
+  if [[ "$CI" != "true" ]]; then
+    build_rust_binaries_generic "x86_64"
+    build_vue
+    prepare_package_contents
+  fi
 
   docker build -f Dockerfile.pkgbuild -t rbpf-pkgbuild .
+
   rm -rf ./contrib/pkg/arch/src
   mkdir -p ./contrib/pkg/arch/src
   mv ./rbpf-build/* ./contrib/pkg/arch/src
@@ -72,18 +134,18 @@ build_zst() {
     bash -c "makepkg -f"
 
   mv ./contrib/pkg/arch/*.zst ./
-  rm -rf ./contrib/pkg/arch/src
-  rm -rf ./contrib/pkg/src
-  rm -rf ./contrib/pkg/arch/pkg
+  rm -rf ./contrib/pkg/arch/src ./contrib/pkg/arch/pkg ./contrib/pkg/src
   echo "✅ .zst package built successfully."
 }
 
 build_deb() {
   echo "📦 Building .deb package inside Docker..."
 
-  build_rust_binaries
-  build_vue
-  prepare_package_contents
+  if [[ "$CI" != "true" ]]; then
+    build_rust_binaries_generic "x86_64"
+    build_vue
+    prepare_package_contents
+  fi
 
   docker build -f Dockerfile.debbuild -t rbpf-debbuild .
 
@@ -93,16 +155,18 @@ build_deb() {
     -u "$(id -u):$(id -g)" \
     rbpf-debbuild \
     bash -c "dpkg-deb --build contrib/pkg/debian rbpf.deb"
-  rm -rf rbpf-deb
+
   echo "✅ .deb package built successfully."
 }
 
 build_rpm() {
   echo "📦 Building .rpm package inside Docker..."
 
-  build_rust_binaries
-  build_vue
-  prepare_package_contents
+  if [[ "$CI" != "true" ]]; then
+    build_rust_binaries_generic "x86_64"
+    build_vue
+    prepare_package_contents
+  fi
 
   mkdir -p ./rpmbuild/SOURCES/rbpf
   cp -r ./rbpf-build/* ./rpmbuild/SOURCES/rbpf/
@@ -118,21 +182,31 @@ build_rpm() {
     -u "$(id -u):$(id -g)" \
     rbpf-rpmbuild \
     bash -c "rpmbuild -bb contrib/pkg/rpm/rbpf.spec --define '_topdir /home/builder/rpmbuild' && cp /home/builder/rpmbuild/RPMS/*/*.rpm /home/builder/"
+
   rm -rf ./rpmbuild
   echo "✅ .rpm package built successfully."
 }
 
 build_bin_zip() {
-  echo "📦 Creating a TAR archive of Rust binaries..."
-  build_rust_binaries
-  mkdir -p ./rbpf-build/opt/rbpf/bin/
-  tar -czf rbpf-binaries.tar.gz -C ./rbpf-build/opt/rbpf bin/
-  echo "✅ Rust binaries archive created successfully."
+  ARCH=$1
+  echo "📦 Creating a TAR archive of Rust binaries for $ARCH..."
+
+  if [[ "$CI" != "true" ]]; then
+    build_rust_binaries_generic "$ARCH"
+    prepare_package_contents
+  fi
+
+  tar -czf "rbpf-binaries-$ARCH.tar.gz" -C ./rbpf-build/opt/ rbpf/
+  echo "✅ Rust binaries archive for $ARCH created successfully."
 }
 
 build_vue_zip() {
   echo "📦 Creating a TAR archive of WebUI..."
-  build_vue
+
+  if [[ "$CI" != "true" ]]; then
+    build_vue
+  fi
+
   mkdir -p ./rbpf-build/opt/rbpf/ui/dist
   tar -czf rbpf-vue.tar.gz -C ./rbpf-build/opt/rbpf/ui dist
   echo "✅ WebUI archive created successfully."
@@ -147,13 +221,18 @@ clean() {
 
 help() {
   echo "USE ./build.sh [PARAM]:
-        * --build-bin - Сборка Rust приложения.
-        * --build-bin-zip - Сборка и упаковка Rust приложения.
+        * --build-bin - Сборка Rust приложения. (x86_64)
+        * --build-bin-armv7 - Сборка Rust приложения. (armv7)
+
+        * --build-bin-zip - Сборка и упаковка Rust приложения. (x86_64)
+        * --build-bin-zip-armv7 - Сборка и упаковка Rust приложения. (armv7)
+
         * --build-vue - Сборка WebUI приложения.
         * --build-vue-zip - Сборка и упаковка WebUI приложения.
-        * --build-zst - Полная сборка пакета формата Arch Linux.
-        * --build-deb - Полная сборка пакета формата Debian Linux.
-        * --build-rpm - Полная сборка пакета формата Red Hat Linux.
+
+        * --build-zst - Полная сборка пакета формата Arch Linux (x86_64).
+        * --build-deb - Полная сборка пакета формата Debian Linux (x86_64).
+        * --build-rpm - Полная сборка пакета формата Red Hat Linux (x86_64).
         "
 }
 
@@ -162,7 +241,13 @@ main() {
 
   case "$1" in
     --build-bin)
-      build_rust_binaries
+      build_rust_binaries_x86_x64
+      ;;
+    --build-bin-armv7)
+      build_rust_binaries_armv7
+      ;;
+    --build-bin-mips)
+      build_rust_binaries_mips
       ;;
     --build-zst)
       build_zst
@@ -178,18 +263,38 @@ main() {
       ;;
     --build-vue)
       build_vue
-      clean
       ;;
     --prepare)
       prepare_package_contents
-      clean
       ;;
     --build-bin-zip)
-      build_bin_zip
-      clean
+      build_bin_zip "x86_64"
+      if [[ "$CI" != "true" ]]; then
+          clean
+      fi
+      ;;
+    --build-bin-zip-armv7)
+      build_bin_zip "armv7"
+      if [[ "$CI" != "true" ]]; then
+          clean
+      fi
       ;;
     --build-vue-zip)
       build_vue_zip
+      if [[ "$CI" != "true" ]]; then
+          clean
+      fi
+      ;;
+    --build-node-cache)
+      build_node_cache
+      clean
+      ;;
+    --build-rust-cache)
+      build_rust_cache
+      clean
+      ;;
+    --build-rust-cache-armv7)
+      build_rust_arm_cache
       clean
       ;;
     *)

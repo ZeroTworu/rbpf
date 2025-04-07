@@ -6,26 +6,20 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libssl-dev \
     build-essential \
     curl \
+    gcc-mips-linux-gnu \
     && rm -rf /var/lib/apt/lists/*
 
 
 RUN rustup toolchain install nightly && \
     rustup component add rust-src --toolchain nightly && \
-    rustup default stable
+    rustup target add mips-unknown-linux-gnu
 
 
-RUN cargo install cargo-generate bpf-linker bindgen-cli
-
-WORKDIR /app
+RUN cargo install cargo-generate bpf-linker bindgen-cli --locked
 
 WORKDIR /app
-COPY ./rbpf-common/ ./rbpf-common/
-COPY ./rbpf-ebpf/ ./rbpf-ebpf/
-COPY ./rbpf-http/ ./rbpf-http/
-COPY ./rbpf-loader/ ./rbpf-loader/
-COPY ./contrib/ ./contrib/
-COPY ./Cargo.toml ./Cargo.toml
-COPY ./Cargo.lock ./Cargo.lock
+COPY . .
 
-RUN cargo fetch
-RUN cargo build --release
+ENV CARGO_TARGET_DIR=/app/target
+
+RUN cargo build --release --target=mips-unknown-linux-gnu

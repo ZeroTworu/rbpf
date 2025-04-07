@@ -1,0 +1,37 @@
+FROM hanyuu/rbpf-rust-builder:arm-ebpf AS ebpf-builder
+
+WORKDIR /app
+COPY ./rbpf-common/ ./rbpf-common/
+COPY ./rbpf-ebpf/ ./rbpf-ebpf/
+COPY ./rbpf-http/ ./rbpf-http/
+COPY ./rbpf-loader/ ./rbpf-loader/
+COPY ./contrib/ ./contrib/
+COPY ./Cargo.toml ./Cargo.toml
+COPY ./Cargo.lock ./Cargo.lock
+
+RUN cargo build --release \
+    --target bpfel-unknown-none \
+    -p rbpf-ebpf \
+    -Z build-std=core \
+    -Z build-std-features=compiler-builtins-mem
+
+FROM hanyuu/rbpf-rust-builder:arm-elf AS elf-builder
+
+WORKDIR /app
+COPY ./rbpf-common/ ./rbpf-common/
+COPY ./rbpf-ebpf/ ./rbpf-ebpf/
+COPY ./rbpf-http/ ./rbpf-http/
+COPY ./rbpf-loader/ ./rbpf-loader/
+COPY ./contrib/ ./contrib/
+COPY ./Cargo.toml ./Cargo.toml
+COPY ./Cargo.lock ./Cargo.lock
+
+COPY --from=ebpf-builder /app/target/bpfel-unknown-none/release/rbpf /app/ebpf/rbpf.o
+
+RUN cargo build --release --target armv7-unknown-linux-gnueabihf \
+    --package rbpf-loader \
+    --package rbpf-http \
+    --no-default-features \
+    --target-dir=/app/target/
+
+

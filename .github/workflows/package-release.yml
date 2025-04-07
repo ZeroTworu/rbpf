@@ -1,4 +1,4 @@
-name: "Build Packages"
+name: "Build Rust eBPF"
 
 on:
   push:
@@ -9,90 +9,182 @@ permissions:
   contents: "write"
 
 jobs:
-  build-packages:
-    runs-on: "ubuntu-latest"
-    env:
-      DOCKER_BUILDKIT: 1
+  build-bin-x86_64:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: docker/setup-buildx-action@v3
+      - run: ./build.sh --build-bin
+      - uses: actions/upload-artifact@v4
+        with:
+          name: build-bin
+          path: rbpf-build/opt/rbpf/bin/
+
+  build-bin-armv7:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: docker/setup-buildx-action@v3
+      - run: ./build.sh --build-bin-armv7
+      - uses: actions/upload-artifact@v4
+        with:
+          name: build-bin-arm-v7
+          path: rbpf-build/opt/rbpf/bin/armv7/
+
+  build-vue:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - run: ./build.sh --build-vue
+      - uses: actions/upload-artifact@v4
+        with:
+          name: build-vue
+          path: rbpf-build/opt/rbpf/ui/
+
+  prepare:
+    needs: [build-bin-x86_64, build-bin-armv7, build-vue]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/download-artifact@v4
+        with:
+          name: build-bin
+          path: rbpf-build/opt/rbpf/bin/
+      - uses: actions/download-artifact@v4
+        with:
+          name: build-vue
+          path: rbpf-build/opt/rbpf/ui/
+      - run: ./build.sh --prepare
+      - uses: actions/upload-artifact@v4
+        with:
+          name: build-contents
+          path: rbpf-build/
+
+  package-zst:
+    needs: prepare
+    runs-on: ubuntu-latest
 
     steps:
-      - name: "📥 Checkout repository"
-        uses: "actions/checkout@v3"
+      - uses: actions/checkout@v3
 
-      - name: "🐳 Set up Docker Buildx"
-        uses: "docker/setup-buildx-action@v3"
+      - uses: actions/download-artifact@v4
+        with:
+          name: build-contents
+          path: rbpf-build/
 
-      - name: "⚙️ Set up QEMU (for cross-platform, if needed)"
-        uses: "docker/setup-qemu-action@v3"
+      - run: ./build.sh --build-zst
 
-      - name: "🧱 Build Rust binaries"
-        run: "./build.sh --build-bin"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: zst
+          path: "*.zst"
 
-      - name: "🌐 Build Vue frontend"
-        run: "./build.sh --build-vue"
+  package-deb:
+    needs: prepare
+    runs-on: ubuntu-latest
 
-      - name: "⚙️ Prepare package contents"
-        run: "./build.sh --prepare"
+    steps:
+      - uses: actions/checkout@v3
 
-      - name: "📦 Build ZST package"
-        run: "./build.sh --build-zst"
+      - uses: actions/download-artifact@v4
+        with:
+          name: build-contents
+          path: rbpf-build/
 
-      - name: "📦 Build DEB package"
-        run: "./build.sh --build-deb"
+      - run: ./build.sh --build-deb
 
-      - name: "📦 Build RPM package"
-        run: "./build.sh --build-rpm"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: deb
+          path: "*.deb"
 
-      - name: "📦 Build bin's tar.gz"
-        run: "./build.sh --build-bin-zip"
+  package-rpm:
+    needs: prepare
+    runs-on: ubuntu-latest
 
-      - name: "📦 Build WebUI tar.gz"
-        run: "./build.sh --build-vue-zip"
+    steps:
+      - uses: actions/checkout@v3
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: build-contents
+          path: rbpf-build/
+
+      - run: ./build.sh --build-rpm
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: rpm
+          path: "*.rpm"
+
+  package-zip:
+    needs: prepare
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v3
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: build-contents
+          path: rbpf-build/
+
+      - run: |
+          ./build.sh --build-bin-zip
+          ./build.sh --build-bin-zip-armv7
+          ./build.sh --build-vue-zip
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: zip
+          path: "*.tar.gz"
+
+  upload:
+    needs: [ package-zst, package-deb, package-rpm, package-zip ]
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: "⬇️ Download all artifacts"
+        uses: actions/download-artifact@v4
+        with:
+          path: ./all-artifacts
+
+      - name: "🧹 Clear after build"
+        run: |
+          cd all-artifacts
+          find . -name '*debug*' -delete
+          rm -rf ./build-*/
 
       - name: "📦 Rename artifacts"
         run: |
-          TAG_NAME=$(echo "${GITHUB_REF#refs/tags/}" | sed 's/\//_/g')
-
-          for file in *.zst; do
-            [ -e "$file" ] || continue
-            base=$(basename "$file" .pkg.tar.zst)
-            mv "$file" "${base}-${TAG_NAME}.pkg.tar.zst"
-          done
-
-          for file in *.deb; do
-            [ -e "$file" ] || continue
-            base=$(basename "$file" .deb)
-            mv "$file" "${base}-${TAG_NAME}.deb"
-          done
-
-          for file in *.rpm; do
-            [ -e "$file" ] || continue
-            base=$(basename "$file" .rpm)
-            mv "$file" "${base}-${TAG_NAME}.rpm"
-          done
-
-          if [ -f rbpf-vue.tar.gz ]; then
-            mv rbpf-vue.tar.gz rbpf-vue-${TAG_NAME}.tar.gz
-          fi
-
-          if [ -f rbpf-binaries.tar.gz ]; then
-            mv rbpf-binaries.tar.gz rbpf-binaries-${TAG_NAME}.tar.gz
-          fi
-
-      - name: "📤 Upload artifacts"
-        uses: "actions/upload-artifact@v4"
-        with:
-          name: "rbpf-packages"
-          path: |
-            *.zst
-            *.deb
-            *.rpm
-            *.tar.gz
-      - name: "📤 Upload packages to GitHub Release"
-        uses: "softprops/action-gh-release@v1"
+            cd all-artifacts
+            tree
+            ls
+            TAG_NAME=$(echo "${GITHUB_REF#refs/tags/}" | sed 's/\//_/g')
+      
+            find -name '*.zst' -print0 | while IFS= read -r -d '' f; do
+              mv "$f" "${f%.pkg.tar.zst}-${TAG_NAME}.pkg.tar.zst"
+            done
+        
+            find -name '*.deb' -print0 | while IFS= read -r -d '' f; do
+              mv "$f" "${f%.deb}-${TAG_NAME}.deb"
+            done
+        
+            find -name '*.rpm' -print0 | while IFS= read -r -d '' f; do
+              mv "$f" "${f%.rpm}-${TAG_NAME}.rpm"
+            done
+          
+            find -name '*.tar.gz' -print0 | while IFS= read -r -d '' f; do
+              mv "$f" "${f%.tar.gz}-${TAG_NAME}.tar.gz"
+            done
+      - name: "📤 Upload to GitHub Release"
+        uses: softprops/action-gh-release@v1
         if: startsWith(github.ref, 'refs/tags/')
         with:
           files: |
-            *.zst
-            *.deb
-            *.rpm
-            *.tar.gz
+            all-artifacts/deb/*
+            all-artifacts/rpm/*
+            all-artifacts/zst/*
+            all-artifacts/zip/*

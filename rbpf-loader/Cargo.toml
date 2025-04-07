@@ -4,13 +4,13 @@ version = "0.2.1"
 edition = "2021"
 
 [features]
-default = []
+default = ["embed-ebpf"]
+embed-ebpf = []
 user = []
 
 [dependencies]
 anyhow = { workspace = true, default-features = true }
 aya = { workspace = true }
-aya-log = { workspace = true }
 env_logger = { workspace = true }
 libc = { workspace = true }
 log = { workspace = true }
@@ -22,13 +22,12 @@ serde = { version = "1", features = ["derive"] }
 serde_json = "1.0.140"
 rbpf-common = { path = "../rbpf-common", features=["user"]}
 nix = "0.29.0"
-sqlx = { version = "0.8.3", features = ["sqlite", "runtime-tokio-native-tls", "macros", "migrate"] }
-libsqlite3-sys = { version = "*", features = ["bundled"] }
+sqlx = { version = "0.8.3", features = ["sqlite", "runtime-tokio", "macros", "migrate"] }
 
 [build-dependencies]
 anyhow = { workspace = true }
 aya-build = { workspace = true }
-rbpf-ebpf = { path = "../rbpf-ebpf" }
+# rbpf-ebpf = { path = "../rbpf-ebpf" }
 
 
 [[bin]]

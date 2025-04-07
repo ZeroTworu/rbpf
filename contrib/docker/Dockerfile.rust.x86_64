@@ -1,0 +1,30 @@
+FROM rust:1.76-slim AS builder
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    clang llvm libclang-dev build-essential pkg-config \
+    ca-certificates curl git \
+    libssl-dev \
+    build-essential \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
+
+
+RUN rustup toolchain install nightly && \
+    rustup component add rust-src --toolchain nightly && \
+    rustup default stable
+
+
+RUN cargo install cargo-generate bpf-linker bindgen-cli --locked
+
+WORKDIR /app
+
+COPY ../../rbpf-common/ ./rbpf-common/
+COPY ../../rbpf-ebpf/ ./rbpf-ebpf/
+COPY ../../rbpf-http/ ./rbpf-http/
+COPY ../../rbpf-loader/ ./rbpf-loader/
+COPY ../../contrib/ ./contrib/
+COPY ../../Cargo.toml ./Cargo.toml
+COPY ../../Cargo.lock ./Cargo.lock
+
+RUN cargo fetch
+RUN cargo build --release --features embed-ebpf --target-dir=/app/target/

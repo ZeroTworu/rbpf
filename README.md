@@ -41,13 +41,21 @@
 
 
 #### Быстрая сборка:
-* `./build.sh --build-bin` - Сборка Rust приложения.
-* `./build.sh --build-bin-zip` - Сборка и упаковка Rust приложения.
+* `./build.sh --build-bin` - Сборка Rust приложения (x86_64).
+* `./build.sh --build-bin-armv7` - Сборка Rust приложения (armv7).
+
+------
+* `./build.sh --build-bin-zip` - Сборка и упаковка Rust приложения (x86_64).
+* `./build.sh --build-bin-zip-armv7` - Сборка и упаковка Rust приложения (armv7).
+
+------
 * `./build.sh --build-vue` - Сборка WebUI приложения.
 * `./build.sh --build-vue-zip` - Сборка и упаковка WebUI приложения.
-* `./build.sh --build-zst` - Полная сборка пакета формата Arch Linux.
-* `./build.sh --build-deb` - Полная сборка пакета формата Debian Linux.
-* `./build.sh --build-rpm` - Полная сборка пакета формата Red Hat Linux.
+
+------
+* `./build.sh --build-zst` - Полная сборка пакета формата Arch Linux (x86_64).
+* `./build.sh --build-deb` - Полная сборка пакета формата Debian Linux (x86_64).
+* `./build.sh --build-rpm` - Полная сборка пакета формата Red Hat Linux (x86_64).
 
     * **WARNING!** Установку и работоспособность проверял только на `zst`, лень пока заниматься виртуалками с Debian / Red Hat.
 

@@ -27,6 +27,7 @@ use trust_dns_resolver::config::{ResolverConfig, ResolverOpts};
 use trust_dns_resolver::error::ResolveError;
 use trust_dns_resolver::lookup::ReverseLookup;
 use trust_dns_resolver::TokioAsyncResolver;
+use std::os::raw::c_char;
 
 pub const LOGS_RING_BUF: &str = "LOGS_RING_BUF";
 
@@ -97,7 +98,7 @@ impl WLogMessage {
     }
     pub fn iface(&self) -> String {
         let mut name_buf = [0u8; libc::IF_NAMESIZE];
-        let name_ptr = name_buf.as_mut_ptr() as *mut i8;
+        let name_ptr = name_buf.as_mut_ptr() as *mut c_char;
 
         unsafe {
             if if_indextoname(self.msg.ifindex, name_ptr).is_null() {

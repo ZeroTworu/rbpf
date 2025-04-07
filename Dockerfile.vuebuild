@@ -1,8 +1,6 @@
-FROM node:20 AS builder
+FROM hanyuu/rbpf-node-builder:cached AS builder
 
 WORKDIR /app
 COPY rbpf-ui/ ./
-
-RUN npm install
 
 RUN npm run build-only

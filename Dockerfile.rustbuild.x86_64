@@ -1,4 +1,4 @@
-FROM hanyuu/rbpf-rust-builder:cached AS builder
+FROM hanyuu/rbpf-rust-builder:x86_64 AS builder
 
 WORKDIR /app
 COPY ./rbpf-common/ ./rbpf-common/
@@ -9,4 +9,4 @@ COPY ./contrib/ ./contrib/
 COPY ./Cargo.toml ./Cargo.toml
 COPY ./Cargo.lock ./Cargo.lock
 
-RUN cargo build --release
+RUN cargo build --release --features embed-ebpf --target-dir=/app/target/

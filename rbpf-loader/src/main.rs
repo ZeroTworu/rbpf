@@ -1,7 +1,7 @@
 use crate::logs::WLogMessage;
 use aya::maps::RingBuf;
 use aya::Ebpf;
-use log::{debug, info, warn};
+use log::{debug, info};
 use rbpf_loader::control;
 use rbpf_loader::logs;
 use rbpf_loader::logs::log_sender;
@@ -30,13 +30,7 @@ async fn main() -> anyhow::Result<()> {
 async fn init_bpf() -> anyhow::Result<()> {
     info!("Initializing BPF program...");
 
-    let mut ebpf = Ebpf::load(aya::include_bytes_aligned!(concat!(
-        env!("OUT_DIR"),
-        "/rbpf"
-    )))?;
-    if let Err(e) = aya_log::EbpfLogger::init(&mut ebpf) {
-        warn!("failed to initialize eBPF logger: {}", e);
-    }
+    let mut ebpf = get_rbpf().await?;
 
     let settings = Arc::new(settings::read_settings(&mut ebpf).await?);
     let logs_ring_buf = RingBuf::try_from(ebpf.take_map(logs::LOGS_RING_BUF).unwrap())?;
@@ -58,4 +52,27 @@ async fn init_bpf() -> anyhow::Result<()> {
         }
     }
     Ok(())
+}
+
+async fn get_rbpf() -> anyhow::Result<Ebpf> {
+    #[cfg(feature = "embed-ebpf")]
+    {
+        let bytes = aya::include_bytes_aligned!(concat!(env!("OUT_DIR"), "/rbpf"));
+        let ebpf = Ebpf::load(&bytes)?;
+        Ok(ebpf)
+    }
+
+    #[cfg(not(feature = "embed-ebpf"))]
+    {
+        use tokio::fs;
+        use std::path::{ PathBuf };
+
+        let mut path = PathBuf::from("/app/ebpf/rbpf.o");
+        if !path.exists() {
+            path = PathBuf::from("./rbpf.o");
+        }
+        let data = fs::read(path).await?;
+        let mut ebpf = Ebpf::load(&data)?;
+        Ok(ebpf)
+    }
 }
