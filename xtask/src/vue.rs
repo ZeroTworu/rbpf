@@ -9,7 +9,7 @@ pub fn build_vue() -> Result<()> {
     Command::new("docker")
         .arg("build")
         .arg("-f")
-        .arg("Dockerfile.vuebuild")
+        .arg("./contrib/docker/Dockerfile.vuebuild")
         .arg("-t")
         .arg("rbpf-ui-build")
         .arg(".")

@@ -18,8 +18,6 @@ pub fn build_bin_zip(arch: &str) -> Result<()> {
         prepare_package_contents()?;
     }
 
-
-
     let archive_name = format!("rbpf-binaries-{arch}.tar.gz");
 
     let output = Command::new("tar")

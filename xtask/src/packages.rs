@@ -27,7 +27,7 @@ pub fn build_zst() -> Result<()> {
         .args([
             "build",
             "-f",
-            "Dockerfile.pkgbuild",
+            "./contrib/docker/Dockerfile.pkgbuild",
             "-t",
             "rbpf-pkgbuild",
             ".",
@@ -93,7 +93,7 @@ pub fn build_deb() -> Result<()> {
         .args([
             "build",
             "-f",
-            "Dockerfile.debbuild",
+            "./contrib/docker/Dockerfile.debbuild",
             "-t",
             "rbpf-debbuild",
             ".",
@@ -146,7 +146,7 @@ pub fn build_rpm() -> Result<()> {
             "--build-arg",
             &format!("USER_ID={}", uid()),
             "-f",
-            "Dockerfile.rpmbuild",
+            "./contrib/docker/Dockerfile.rpmbuild",
             "-t",
             "rbpf-rpmbuild",
             ".",

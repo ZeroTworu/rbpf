@@ -6,26 +6,19 @@ pub fn build_rust_binaries_x86_64() -> Result<()> {
     build_rust_binaries_generic("x86_64")
 }
 
-
 pub fn build_rust_binaries_generic(arch: &str) -> Result<()> {
     let (tag, dockerfile, full_path, bin_path) = match arch {
         "x86_64" => (
             "rbpf-build-x86_64",
-            "Dockerfile.rustbuild.x86_64",
+            "./contrib/docker/Dockerfile.rustbuild.x86_64",
             "release",
             "./rbpf-build/opt/rbpf/bin/",
         ),
         "armv7" => (
             "rbpf-build-armv7",
-            "Dockerfile.rustbuild.arm",
+            "./contrib/docker/Dockerfile.rustbuild.arm",
             "armv7-unknown-linux-gnueabihf/release",
             "./rbpf-build/opt/rbpf/bin/armv7/",
-        ),
-        "mips" => (
-            "rbpf-build-mips",
-            "Dockerfile.rustbuild.mips",
-            "release",
-            "./rbpf-build/opt/rbpf/bin/mips/",
         ),
         _ => anyhow::bail!("Unsupported arch: {}", arch),
     };
