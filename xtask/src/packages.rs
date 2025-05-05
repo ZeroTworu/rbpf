@@ -5,7 +5,6 @@ use crate::fs_ext;
 use anyhow::{Context, Result};
 use std::process::Command;
 
-
 pub fn build_pkg(pkg_type: &str) -> Result<()> {
     match pkg_type {
         "zst" => build_zst(),
@@ -71,13 +70,11 @@ pub fn build_zst() -> Result<()> {
         }
     }
 
-
     if std::env::var("CI").unwrap_or_default() != "true" {
         fs::remove_dir_all("./contrib/pkg/arch/src").ok();
         fs::remove_dir_all("./contrib/pkg/arch/pkg").ok();
         fs::remove_dir_all("./contrib/pkg/src").ok();
     }
-
 
     println!("✅ .zst package built successfully.");
     Ok(())

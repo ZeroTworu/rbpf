@@ -21,6 +21,7 @@ jobs:
         with:
           name: build-bin
           path: rbpf-build/opt/rbpf/bin/
+
   build-bin-armv7:
     runs-on: ubuntu-latest
     steps:
@@ -32,7 +33,7 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: build-bin-arm-v7
-          path: rbpf-build/opt/rbpf/bin/armv7/
+          path: rbpf-build/opt/rbpf/bin/
 
   build-vue:
     runs-on: ubuntu-latest
@@ -51,10 +52,6 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
-      - uses: actions/download-artifact@v4
-        with:
-          name: build-bin
-          path: rbpf-build/opt/rbpf/bin/
       - uses: actions/download-artifact@v4
         with:
           name: build-vue
@@ -76,6 +73,10 @@ jobs:
         with:
           name: build-contents
           path: rbpf-build/
+      - uses: actions/download-artifact@v4
+        with:
+          name: build-bin
+          path: rbpf-build/opt/rbpf/bin/
       - name: "📦 Run build .zst package"
         uses: "docker://hanyuu/rbpf-rust-builder:xtask"
       - run: "cargo xtask build-pkg zst"
@@ -93,6 +94,10 @@ jobs:
         with:
           name: build-contents
           path: rbpf-build/
+      - uses: actions/download-artifact@v4
+        with:
+          name: build-bin
+          path: rbpf-build/opt/rbpf/bin/
       - name: "📦 Run build .deb package"
         uses: "docker://hanyuu/rbpf-rust-builder:xtask"
       - run: "cargo xtask build-pkg deb"
@@ -110,6 +115,10 @@ jobs:
         with:
           name: build-contents
           path: rbpf-build/
+      - uses: actions/download-artifact@v4
+        with:
+          name: build-bin
+          path: rbpf-build/opt/rbpf/bin/
       - name: "📦 Run build .rpm package"
         uses: "docker://hanyuu/rbpf-rust-builder:xtask"
       - run: "cargo xtask build-pkg rpm"
@@ -118,7 +127,7 @@ jobs:
           name: rpm
           path: "*.rpm"
 
-  package-zip:
+  package-zip-x86_64:
     needs: prepare
     runs-on: ubuntu-latest
     steps:
@@ -127,19 +136,58 @@ jobs:
         with:
           name: build-contents
           path: rbpf-build/
-      - name: "📦 Run build simple .tar.gz with binaries & WebUI"
+      - uses: actions/download-artifact@v4
+        with:
+          name: build-bin
+          path: rbpf-build/opt/rbpf/bin/
+      - name: "📦 Run build simple .tar.gz for x86_64"
         uses: "docker://hanyuu/rbpf-rust-builder:xtask"
-      - run: |
-          cargo xtask build-bin-zip x86_64
-          cargo xtask build-bin-zip armv7
-          cargo xtask build-vue-zip
+      - run: "cargo xtask build-bin-zip x86_64"
       - uses: actions/upload-artifact@v4
         with:
-          name: zip
+          name: zip-x86_64
+          path: "*.tar.gz"
+
+  package-zip-arm:
+    needs: prepare
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/download-artifact@v4
+        with:
+          name: build-contents
+          path: rbpf-build/
+      - uses: actions/download-artifact@v4
+        with:
+          name: build-bin-arm-v7
+          path: rbpf-build/opt/rbpf/bin/
+      - name: "📦 Run build simple .tar.gz for arm"
+        uses: "docker://hanyuu/rbpf-rust-builder:xtask"
+      - run: "cargo xtask build-bin-zip armv7"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: zip-armv7
+          path: "*.tar.gz"
+
+  package-zip-vue:
+    needs: prepare
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/download-artifact@v4
+        with:
+          name: build-contents
+          path: rbpf-build/
+      - name: "📦 Run build simple .tar.gz with WebUI"
+        uses: "docker://hanyuu/rbpf-rust-builder:xtask"
+      - run: cargo xtask build-vue-zip
+      - uses: actions/upload-artifact@v4
+        with:
+          name: zip-vue
           path: "*.tar.gz"
 
   upload:
-    needs: [ package-zst, package-deb, package-rpm, package-zip ]
+    needs: [ package-zst, package-deb, package-rpm, package-zip-x86_64, package-zip-arm, package-zip-vue]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
@@ -183,4 +231,6 @@ jobs:
             all-artifacts/deb/*
             all-artifacts/rpm/*
             all-artifacts/zst/*
-            all-artifacts/zip/*
+            all-artifacts/zip-vue/*
+            all-artifacts/zip-armv7/*
+            all-artifacts/zip-x86_64/*

@@ -31,7 +31,6 @@ rbpf-common = { path = "../rbpf-common", features=["user"]}
 [build-dependencies]
 anyhow = { workspace = true }
 aya-build = { workspace = true }
-# rbpf-ebpf = { path = "../rbpf-ebpf" }
 
 
 [[bin]]

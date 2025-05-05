@@ -6,13 +6,6 @@ pub fn build_rust_binaries_x86_64() -> Result<()> {
     build_rust_binaries_generic("x86_64")
 }
 
-// pub fn build_rust_binaries_armv7() -> Result<()> {
-//     build_rust_binaries_generic("armv7")
-// }
-
-// pub fn build_rust_binaries_mips() -> Result<()> {
-//     build_rust_binaries_generic("mips")
-// }
 
 pub fn build_rust_binaries_generic(arch: &str) -> Result<()> {
     let (tag, dockerfile, full_path, bin_path) = match arch {

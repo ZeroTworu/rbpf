@@ -2,7 +2,7 @@ FROM fedora:latest
 
 ARG USER_ID
 
-RUN dnf install -y rpm-build rpmdevtools sudo && \
+RUN dnf install -y rpm-build rpmdevtools tree sudo && \
     useradd -m builder && echo "builder ALL=(ALL) NOPASSWD: ALL" >> /etc/sudoers && \
     mkdir -p /home/builder/rpmbuild/{BUILD,RPMS,SOURCES,SPECS,SRPMS} && \
     chown -R builder:builder /home/builder

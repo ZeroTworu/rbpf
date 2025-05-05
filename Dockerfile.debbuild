@@ -4,7 +4,6 @@ RUN apt-get update && apt-get install -y sudo dpkg-dev && \
     useradd -m builder && echo "builder ALL=(ALL) NOPASSWD: ALL" >> /etc/sudoers && \
     mkdir -p /home/builder/debbuild
 
-# Копируем после создания пользователя и в нужную директорию
 COPY --chown=builder:builder rbpf-build /home/builder/rbpf-build
 COPY --chown=builder:builder contrib/pkg /home/builder/pkg
 

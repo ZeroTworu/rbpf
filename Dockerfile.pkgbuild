@@ -4,7 +4,7 @@ RUN pacman -Sy --noconfirm git sudo \
   && useradd -m builder && echo "builder ALL=(ALL) NOPASSWD: ALL" >> /etc/sudoers \
   && mkdir -p /home/builder/pkgbuild && chown builder:builder /home/builder/pkgbuild
 
-WORKDIR /home/builder/pkgbuild
 USER builder
+WORKDIR /home/builder/pkgbuild
 
 CMD ["/bin/bash"]

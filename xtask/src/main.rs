@@ -27,6 +27,7 @@ enum Commands {
     BuildPkg { pkg_type: String },
     BuildRustCache { arch: String },
     BuildNodeCache,
+    Clean,
 }
 
 fn main() -> anyhow::Result<()> {
@@ -39,8 +40,9 @@ fn main() -> anyhow::Result<()> {
         Commands::BuildVue => vue::build_vue(),
         Commands::BuildVueZip => archive::build_vue_zip(),
         Commands::Prepare => packages::prepare_package_contents(),
-        Commands::BuildPkg {pkg_type} => packages::build_pkg(&pkg_type),
+        Commands::BuildPkg { pkg_type } => packages::build_pkg(&pkg_type),
         Commands::BuildRustCache { arch } => cache::build_rust_cache(&arch),
         Commands::BuildNodeCache => cache::build_node_cache(),
+        Commands::Clean => clean::clean(),
     }
 }
