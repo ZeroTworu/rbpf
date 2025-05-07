@@ -1,7 +1,8 @@
 use crate::ip::ContextWrapper;
-use crate::{logs, rules};
+use crate::{logs, rules::rule};
 use aya_ebpf::bindings::{TC_ACT_PIPE, TC_ACT_SHOT, xdp_action};
 use rbpf_common::logs::{DEBUG, ERROR, INFO, WARN};
+use rbpf_common::rules::Action;
 
 pub fn handle_ingress_v4(ctx: &ContextWrapper) -> Result<u32, ()> {
     let ret = match ctx.to_parse_result(true, true) {
@@ -16,17 +17,17 @@ pub fn handle_ingress_v4(ctx: &ContextWrapper) -> Result<u32, ()> {
 
     logs::WLogMessage::send_from_rule("IN v4", 0, &ret, DEBUG);
 
-    let (action, rule_id) = rules::rule::check_rule(&ret);
+    let (action, rule_id) = rule::check_rule(&ret);
     match action {
-        rules::Action::Ok => {
+        Action::Ok => {
             logs::WLogMessage::send_from_rule("OK IN v4", rule_id, &ret, INFO);
             Ok(xdp_action::XDP_PASS)
         }
-        rules::Action::Drop => {
+        Action::Drop => {
             logs::WLogMessage::send_from_rule("BAN IN v4", rule_id, &ret, WARN);
             Ok(xdp_action::XDP_DROP)
         }
-        rules::Action::Pipe => {
+        Action::Pipe => {
             logs::WLogMessage::send_from_rule("PIPE IN v4", rule_id, &ret, DEBUG);
             Ok(xdp_action::XDP_PASS)
         }
@@ -44,17 +45,17 @@ pub fn handle_egress_v4(ctx: &ContextWrapper) -> Result<i32, ()> {
 
     logs::WLogMessage::send_from_rule("OUT v4", 0, &ret, DEBUG);
 
-    let (action, rule_id) = rules::rule::check_rule(&ret);
+    let (action, rule_id) = rule::check_rule(&ret);
     match action {
-        rules::Action::Ok => {
+        Action::Ok => {
             logs::WLogMessage::send_from_rule("OK OUT v4", rule_id, &ret, INFO);
             Ok(TC_ACT_PIPE)
         }
-        rules::Action::Drop => {
+        Action::Drop => {
             logs::WLogMessage::send_from_rule("BAN OUT v4", rule_id, &ret, WARN);
             Ok(TC_ACT_SHOT)
         }
-        rules::Action::Pipe => {
+        Action::Pipe => {
             logs::WLogMessage::send_from_rule("PIPE OUT v4", rule_id, &ret, DEBUG);
             Ok(TC_ACT_PIPE)
         }

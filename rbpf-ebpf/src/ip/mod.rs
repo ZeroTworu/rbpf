@@ -3,7 +3,6 @@ pub mod v6;
 
 use crate::ip::v4::{handle_egress_v4, handle_ingress_v4};
 use crate::ip::v6::{handle_egress_v6, handle_ingress_v6};
-use crate::rules::{Action, WRule};
 use aya_ebpf::bindings::{TC_ACT_PIPE, xdp_action};
 use aya_ebpf::programs::{TcContext, XdpContext};
 use core::net::Ipv6Addr;
@@ -11,6 +10,7 @@ use network_types::eth::{EthHdr, EtherType};
 use network_types::ip::{IpProto, Ipv4Hdr, Ipv6Hdr};
 use network_types::tcp::TcpHdr;
 use network_types::udp::UdpHdr;
+use rbpf_common::rules::{Action, Rule};
 
 #[inline(always)]
 pub fn ptr_at_u<T>(start: usize, end: usize, offset: usize) -> Result<*const T, ()> {
@@ -150,73 +150,73 @@ impl ParseResult {
         self.proto == IpProto::Udp
     }
 
-    pub fn is_source_port(&self, rule: &WRule) -> bool {
-        let in_source_port_range = self.source_port >= rule.rule.source_port_start
-            && self.source_port <= rule.rule.source_port_end;
+    pub fn is_source_port(&self, rule: &Rule) -> bool {
+        let in_source_port_range =
+            self.source_port >= rule.source_port_start && self.source_port <= rule.source_port_end;
 
-        let is_any_source_port = rule.rule.source_port_start == 0 && rule.rule.source_port_end == 0;
+        let is_any_source_port = rule.source_port_start == 0 && rule.source_port_end == 0;
         is_any_source_port || in_source_port_range
     }
 
-    pub fn is_destination_port(&self, rule: &WRule) -> bool {
-        let in_destination_port_range = self.destination_port >= rule.rule.destination_port_start
-            && self.destination_port <= rule.rule.destination_port_end;
+    pub fn is_destination_port(&self, rule: &Rule) -> bool {
+        let in_destination_port_range = self.destination_port >= rule.destination_port_start
+            && self.destination_port <= rule.destination_port_end;
 
         let is_any_destination_port =
-            rule.rule.destination_port_start == 0 && rule.rule.destination_port_end == 0;
+            rule.destination_port_start == 0 && rule.destination_port_end == 0;
 
         in_destination_port_range || is_any_destination_port
     }
 
-    pub fn is_source_v4_addr(&self, rule: &WRule) -> bool {
-        (rule.rule.source_addr_v4 == 0)
-            || ((self.source_addr_v4 == rule.rule.source_addr_v4)
-                || (rule.rule.source_mask_v4 != 0
+    pub fn is_source_v4_addr(&self, rule: &Rule) -> bool {
+        (rule.source_addr_v4 == 0)
+            || ((self.source_addr_v4 == rule.source_addr_v4)
+                || (rule.source_mask_v4 != 0
                     && is_ip_in_subnet_v4(
                         self.source_addr_v4,
-                        rule.rule.source_addr_v4,
-                        rule.rule.source_mask_v4,
+                        rule.source_addr_v4,
+                        rule.source_mask_v4,
                     )))
     }
 
-    pub fn is_source_v6_addr(&self, rule: &WRule) -> bool {
-        (rule.rule.source_addr_v6 == 0)
-            || ((self.source_addr_v6 == rule.rule.source_addr_v6)
-                || (rule.rule.source_mask_v6 != 0
+    pub fn is_source_v6_addr(&self, rule: &Rule) -> bool {
+        (rule.source_addr_v6 == 0)
+            || ((self.source_addr_v6 == rule.source_addr_v6)
+                || (rule.source_mask_v6 != 0
                     && is_ip_in_subnet_v6(
                         self.source_addr_v6,
-                        rule.rule.source_addr_v6,
-                        rule.rule.source_mask_v6,
+                        rule.source_addr_v6,
+                        rule.source_mask_v6,
                     )))
     }
 
-    pub fn is_destination_v4_addr(&self, rule: &WRule) -> bool {
-        (rule.rule.destination_addr_v4 == 0)
-            || ((self.destination_addr_v4 == rule.rule.destination_addr_v4)
-                || (rule.rule.destination_mask_v4 != 0
+    pub fn is_destination_v4_addr(&self, rule: &Rule) -> bool {
+        (rule.destination_addr_v4 == 0)
+            || ((self.destination_addr_v4 == rule.destination_addr_v4)
+                || (rule.destination_mask_v4 != 0
                     && is_ip_in_subnet_v4(
                         self.destination_addr_v4,
-                        rule.rule.destination_addr_v4,
-                        rule.rule.destination_mask_v4,
+                        rule.destination_addr_v4,
+                        rule.destination_mask_v4,
                     )))
     }
 
-    pub fn is_destination_v6_addr(&self, rule: &WRule) -> bool {
-        (rule.rule.destination_addr_v6 == 0)
-            || ((self.destination_addr_v6 == rule.rule.destination_addr_v6)
-                || (rule.rule.destination_mask_v4 != 0
+    pub fn is_destination_v6_addr(&self, rule: &Rule) -> bool {
+        (rule.destination_addr_v6 == 0)
+            || ((self.destination_addr_v6 == rule.destination_addr_v6)
+                || (rule.destination_mask_v4 != 0
                     && is_ip_in_subnet_v6(
                         self.destination_addr_v6,
-                        rule.rule.destination_addr_v6,
-                        rule.rule.destination_mask_v6,
+                        rule.destination_addr_v6,
+                        rule.destination_mask_v6,
                     )))
     }
 
-    pub fn to_action(&self, rule: &WRule) -> Action {
-        if rule.rule.ifindex != 0 && self.ifindex != rule.rule.ifindex {
+    pub fn to_action(&self, rule: &Rule) -> Action {
+        if rule.ifindex != 0 && self.ifindex != rule.ifindex {
             return Action::Pipe;
         }
-        if (self.v4 && rule.rule.v4)
+        if (self.v4 && rule.v4)
             && (self.is_source_v4_addr(rule)
                 && self.is_source_port(rule)
                 && rule.is_source_v4_not_empty())
@@ -226,7 +226,7 @@ impl ParseResult {
         {
             return rule.to_action();
         }
-        if (self.v6 && rule.rule.v6)
+        if (self.v6 && rule.v6)
             && (self.is_source_v6_addr(rule)
                 && self.is_source_port(rule)
                 && rule.is_source_v6_not_empty())
@@ -240,26 +240,26 @@ impl ParseResult {
     }
 
     #[inline(always)]
-    pub fn not_my_rule(&self, rule: &WRule) -> bool {
-        if !rule.rule.on {
+    pub fn not_my_rule(&self, rule: &Rule) -> bool {
+        if !rule.on {
             return true;
         }
-        if self.v4 && !rule.rule.v4 {
+        if self.v4 && !rule.v4 {
             return true;
         }
-        if self.v6 && !rule.rule.v6 {
+        if self.v6 && !rule.v6 {
             return true;
         }
-        if self.input && !rule.rule.input {
+        if self.input && !rule.input {
             return true;
         }
-        if self.output && !rule.rule.output {
+        if self.output && !rule.output {
             return true;
         }
-        if (self.proto == IpProto::Tcp) && !rule.rule.tcp {
+        if (self.proto == IpProto::Tcp) && !rule.tcp {
             return true;
         }
-        if (self.proto == IpProto::Udp) && !rule.rule.udp {
+        if (self.proto == IpProto::Udp) && !rule.udp {
             return true;
         }
         false

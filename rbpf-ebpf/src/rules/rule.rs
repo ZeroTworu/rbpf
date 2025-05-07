@@ -1,7 +1,7 @@
 use crate::ip::ParseResult;
-use crate::rules::{Action, WRule};
 use aya_ebpf::macros::map;
 use aya_ebpf::maps::HashMap;
+use rbpf_common::rules::Action;
 use rbpf_common::rules::Rule;
 
 const MAX_ENTRIES: u32 = 128;
@@ -29,12 +29,11 @@ pub fn check_rule(pac: &ParseResult) -> (Action, u32) {
         let rule = unsafe { rules.get(&index) };
         return match rule {
             Some(rule) => {
-                let wrule = &WRule { rule };
-                if pac.not_my_rule(wrule) {
+                if pac.not_my_rule(rule) {
                     continue;
                 }
 
-                let res = pac.to_action(wrule);
+                let res = pac.to_action(rule);
                 if res == Action::Pipe {
                     continue;
                 }
