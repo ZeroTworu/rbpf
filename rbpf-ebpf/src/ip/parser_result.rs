@@ -95,25 +95,39 @@ impl ParseResult {
         if rule.ifindex != 0 && self.ifindex != rule.ifindex {
             return Action::Pipe;
         }
-        if (self.v4 && rule.v4)
-            && (self.is_source_v4_addr(rule)
+
+        if self.v4 && rule.v4 {
+            if self.input
+                && self.is_source_v4_addr(rule)
                 && self.is_source_port(rule)
-                && rule.is_source_v4_not_empty())
-            || (self.is_destination_v4_addr(rule)
+                && rule.is_source_v4_not_empty()
+            {
+                return rule.to_action();
+            }
+            if self.output
+                && self.is_destination_v4_addr(rule)
                 && self.is_destination_port(rule)
-                && rule.is_destination_v4_not_empty())
-        {
-            return rule.to_action();
+                && rule.is_destination_v4_not_empty()
+            {
+                return rule.to_action();
+            }
         }
-        if (self.v6 && rule.v6)
-            && (self.is_source_v6_addr(rule)
+
+        if self.v6 && rule.v6 {
+            if self.input
+                && self.is_source_v6_addr(rule)
                 && self.is_source_port(rule)
-                && rule.is_source_v6_not_empty())
-            || (self.is_destination_v6_addr(rule)
+                && rule.is_source_v6_not_empty()
+            {
+                return rule.to_action();
+            }
+            if self.output
+                && self.is_destination_v6_addr(rule)
                 && self.is_destination_port(rule)
-                && rule.is_destination_v6_not_empty())
-        {
-            return rule.to_action();
+                && rule.is_destination_v6_not_empty()
+            {
+                return rule.to_action();
+            }
         }
         Action::Pipe
     }

@@ -2,22 +2,22 @@ name: "Ban IPv6 localhost"
 
 iface: "lo"
 
-on: false
+on: true
 
 tcp: true
 udp: false
 
-ok: false
-drop: true
+ok: true
+drop: false
 
-input: true
+input: false
 output: true
 
 v4: true
-v6: true
+v6: false
 
-source_addr_v4: "127.0.0.1"
-destination_addr_v4: "127.0.0.1"
+source_addr_v4: ""
+destination_addr_v4: ""
 
 source_addr_v6: "::1/128"
 destination_addr_v6: "::1/24"
