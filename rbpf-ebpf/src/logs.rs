@@ -1,4 +1,4 @@
-use crate::ip::{ParseResult, UnhandledProtocolError};
+use crate::ip::{UnhandledProtocolError, parser_result::ParseResult};
 use aya_ebpf::helpers::bpf_ktime_get_ns;
 use aya_ebpf::macros::map;
 use aya_ebpf::maps::RingBuf;
