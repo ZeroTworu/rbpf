@@ -1,7 +1,7 @@
 use crate::control::change_socket_owner_mode;
+use crate::ipproto;
 use crate::rules::get_rule_name;
 use crate::settings::Settings;
-use crate::ipproto;
 use aya::maps::{MapData, RingBuf};
 use core::net::IpAddr;
 use core::str::from_utf8;
@@ -176,37 +176,51 @@ impl WLogMessage {
         let proto = format!(
             "{}",
             if self.msg.udp && self.msg.tcp {
-                "TCP UDP"
+                " TCP UDP"
             } else if self.msg.udp {
-                "UDP"
+                " UDP"
+            } else if self.msg.tcp {
+                " TCP"
             } else {
-                "TCP"
+                ""
             }
         );
 
         let info = if self.msg.input {
             format!(
-                "INPUT: ({} {}) {} {}:{} -> {} {}:{}",
+                "INPUT: ({}{}) {} {} -> {} {}",
                 self.iface(),
                 proto,
                 src_ptr,
-                s_ip,
-                self.msg.source_port,
+                if self.msg.source_port != 0 {
+                    format!("{}:{}", s_ip, self.msg.source_port)
+                } else {
+                    s_ip.to_string()
+                },
                 dst_ptr,
-                d_ip,
-                self.msg.destination_port
+                if self.msg.destination_port != 0 {
+                    format!("{}:{}", d_ip, self.msg.destination_port)
+                } else {
+                    d_ip.to_string()
+                }
             )
         } else {
             format!(
-                "OUTPUT: ({} {}) {} {}:{} -> {} {}:{}",
+                "OUTPUT: ({}{}) {} {} -> {} {}",
                 self.iface(),
                 proto,
                 src_ptr,
-                s_ip,
-                self.msg.source_port,
+                if self.msg.source_port != 0 {
+                    format!("{}:{}", s_ip, self.msg.source_port)
+                } else {
+                    s_ip.to_string()
+                },
                 dst_ptr,
-                d_ip,
-                self.msg.destination_port
+                if self.msg.destination_port != 0 {
+                    format!("{}:{}", d_ip, self.msg.destination_port)
+                } else {
+                    d_ip.to_string()
+                }
             )
         };
 
@@ -217,7 +231,12 @@ impl WLogMessage {
         }
 
         if self.msg.level == ERROR {
-            format!("{} {}", ipproto::from_u8_to_str(&self.msg.unhandled_protocol), &msg)
+            format!(
+                "[{}] {} {}",
+                &msg,
+                ipproto::from_u8_to_str(&self.msg.unhandled_protocol),
+                &info
+            )
         } else {
             format!("[{}] {}", &msg, &info)
         }

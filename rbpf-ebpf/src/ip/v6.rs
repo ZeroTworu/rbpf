@@ -1,7 +1,6 @@
 use crate::ip::ContextWrapper;
 use crate::{logs, rules::rule};
-use aya_ebpf::bindings::{xdp_action, TC_ACT_PIPE, TC_ACT_SHOT};
-use crate::ip::ipproto;
+use aya_ebpf::bindings::{TC_ACT_PIPE, TC_ACT_SHOT, xdp_action};
 use rbpf_common::logs::{DEBUG, INFO, WARN};
 use rbpf_common::rules::Action;
 
@@ -10,8 +9,7 @@ pub fn handle_ingress_v6(ctx: &ContextWrapper) -> u32 {
         Ok(ret) => ret,
         Err(proto) => {
             return {
-                let proto = ipproto::as_u8(&proto);
-                logs::send_err_unhandled_protocol("UNKNOWN IN v6", proto);
+                logs::send_err_unhandled_protocol("UNHANDLED IN v6", proto);
                 xdp_action::XDP_DROP
             };
         }
@@ -41,8 +39,7 @@ pub fn handle_egress_v6(ctx: &ContextWrapper) -> i32 {
         Ok(ret) => ret,
         Err(proto) => {
             return {
-                let proto = ipproto::as_u8(&proto);
-                logs::send_err_unhandled_protocol("UNKNOWN OUT v6", proto);
+                logs::send_err_unhandled_protocol("UNHANDLED OUT v6", proto);
                 TC_ACT_SHOT
             };
         }

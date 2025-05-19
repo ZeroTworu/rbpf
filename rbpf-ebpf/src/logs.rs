@@ -1,4 +1,4 @@
-use crate::ip::ParseResult;
+use crate::ip::{ParseResult, UnhandledProtocolError};
 use aya_ebpf::helpers::bpf_ktime_get_ns;
 use aya_ebpf::macros::map;
 use aya_ebpf::maps::RingBuf;
@@ -72,27 +72,32 @@ pub fn send_from(message: &str, level: u8) {
     send_log(msg);
 }
 
-pub fn send_err_unhandled_protocol(message: &str, proto: u8) {
+pub fn send_err_unhandled_protocol(message: &str, err: UnhandledProtocolError) {
+    let src_ip_high: u64 = (err.src_v6 >> 64) as u64;
+    let src_ip_low: u64 = err.src_v6 as u64;
+
+    let dst_ip_high: u64 = (err.dst_v6 >> 64) as u64;
+    let dst_ip_low: u64 = err.dst_v6 as u64;
     let msg = LogMessage {
         message: str_to_u8(message),
         rule_id: 0,
         level: ERROR,
-        v4: false,
-        v6: false,
-        input: false,
-        output: false,
+        v4: err.v4,
+        v6: !err.v4,
+        input: err.input,
+        output: !err.input,
         udp: false,
         tcp: false,
-        destination_addr_v4: 0,
-        source_addr_v4: 0,
+        destination_addr_v4: err.dst_v4,
+        source_addr_v4: err.src_v4,
         source_port: 0,
         destination_port: 0,
-        src_ip_high: 0,
-        src_ip_low: 0,
-        dst_ip_high: 0,
-        dst_ip_low: 0,
-        ifindex: 0,
-        unhandled_protocol: proto,
+        src_ip_high,
+        src_ip_low,
+        dst_ip_high,
+        dst_ip_low,
+        ifindex: err.ifindex,
+        unhandled_protocol: err.proto_as_u8(),
         timestamp: now_ns(),
     };
 

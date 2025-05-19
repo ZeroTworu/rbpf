@@ -1,10 +1,10 @@
+pub mod ipproto;
 pub mod v4;
 pub mod v6;
-pub mod ipproto;
 
 use crate::ip::v4::{handle_egress_v4, handle_ingress_v4};
 use crate::ip::v6::{handle_egress_v6, handle_ingress_v6};
-use aya_ebpf::bindings::{xdp_action, TC_ACT_PIPE};
+use aya_ebpf::bindings::{TC_ACT_PIPE, xdp_action};
 use aya_ebpf::programs::{TcContext, XdpContext};
 use core::net::Ipv6Addr;
 use network_types::eth::{EthHdr, EtherType};
@@ -13,11 +13,48 @@ use network_types::tcp::TcpHdr;
 use network_types::udp::UdpHdr;
 use rbpf_common::rules::{Action, Rule};
 
+pub struct UnhandledProtocolError {
+    pub proto: IpProto,
+
+    pub dst_v4: u32,
+    pub src_v4: u32,
+
+    pub dst_v6: u128,
+    pub src_v6: u128,
+
+    pub ifindex: u32,
+    pub input: bool,
+    pub v4: bool,
+}
+
+impl UnhandledProtocolError {
+    pub fn empty() -> Self {
+        Self {
+            proto: IpProto::Reserved,
+            dst_v4: 0u32,
+            src_v4: 0u32,
+            dst_v6: 0u128,
+            src_v6: 0u128,
+            ifindex: 0u32,
+            input: false,
+            v4: false,
+        }
+    }
+
+    pub fn proto_as_u8(&self) -> u8 {
+        return ipproto::as_u8(&self.proto);
+    }
+}
+
 #[inline(always)]
-pub fn ptr_at_u<T>(start: usize, end: usize, offset: usize) -> Result<*const T, IpProto> {
+pub fn ptr_at_u<T>(
+    start: usize,
+    end: usize,
+    offset: usize,
+) -> Result<*const T, UnhandledProtocolError> {
     let len = size_of::<T>();
     if start + offset + len > end {
-        return Err(IpProto::Reserved);
+        return Err(UnhandledProtocolError::empty());
     }
     Ok((start + offset) as *const T)
 }
@@ -49,7 +86,11 @@ impl ContextWrapper {
         }
     }
 
-    pub fn to_parse_result(&self, v4: bool, input: bool) -> Result<ParseResult, IpProto> {
+    pub fn to_parse_result(
+        &self,
+        v4: bool,
+        input: bool,
+    ) -> Result<ParseResult, UnhandledProtocolError> {
         let (proto, destination_addr_v4, source_addr_v4, destination_addr_v6, source_addr_v6) =
             if v4 {
                 let ipv4hdr: Ipv4Hdr = unsafe { *ptr_at_u(self.data, self.data_end, EthHdr::LEN)? };
@@ -85,7 +126,18 @@ impl ContextWrapper {
                     unsafe { *ptr_at_u(self.data, self.data_end, EthHdr::LEN + len)? };
                 (u16::from_be(udphdr.source), u16::from_be(udphdr.dest))
             }
-            _ => return Err(proto),
+            _ => {
+                return Err(UnhandledProtocolError {
+                    proto,
+                    dst_v4: destination_addr_v4,
+                    src_v4: source_addr_v4,
+                    dst_v6: destination_addr_v6,
+                    src_v6: source_addr_v6,
+                    ifindex: self.ifindex,
+                    input,
+                    v4,
+                });
+            }
         };
 
         Ok(ParseResult {
@@ -104,7 +156,7 @@ impl ContextWrapper {
         })
     }
 
-    pub fn handle_as_tc(&self) -> Result<i32, IpProto> {
+    pub fn handle_as_tc(&self) -> Result<i32, UnhandledProtocolError> {
         let ethhdr: EthHdr = unsafe { *ptr_at_u(self.data, self.data_end, 0)? };
         match ethhdr.ether_type {
             EtherType::Ipv4 => Ok(handle_egress_v4(&self)),
@@ -112,7 +164,7 @@ impl ContextWrapper {
             _ => Ok(TC_ACT_PIPE),
         }
     }
-    pub fn handle_as_xdp(&self) -> Result<u32, IpProto> {
+    pub fn handle_as_xdp(&self) -> Result<u32, UnhandledProtocolError> {
         let ethhdr: EthHdr = unsafe { *ptr_at_u(self.data, self.data_end, 0)? };
 
         match ethhdr.ether_type {
