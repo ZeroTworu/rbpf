@@ -1,8 +1,12 @@
 interfaces:
   input:
+#    - "virbr0"
+#    - "virbr1"
     - "enp5s0"
     - "lo"
   output:
+#    - "virbr0"
+#    - "virbr1"
     - "enp5s0"
     - "lo"
 resolve_ptr_records: false

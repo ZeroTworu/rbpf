@@ -1,9 +1,10 @@
 pub mod v4;
 pub mod v6;
+pub mod ipproto;
 
 use crate::ip::v4::{handle_egress_v4, handle_ingress_v4};
 use crate::ip::v6::{handle_egress_v6, handle_ingress_v6};
-use aya_ebpf::bindings::{TC_ACT_PIPE, xdp_action};
+use aya_ebpf::bindings::{xdp_action, TC_ACT_PIPE};
 use aya_ebpf::programs::{TcContext, XdpContext};
 use core::net::Ipv6Addr;
 use network_types::eth::{EthHdr, EtherType};
@@ -13,10 +14,10 @@ use network_types::udp::UdpHdr;
 use rbpf_common::rules::{Action, Rule};
 
 #[inline(always)]
-pub fn ptr_at_u<T>(start: usize, end: usize, offset: usize) -> Result<*const T, ()> {
+pub fn ptr_at_u<T>(start: usize, end: usize, offset: usize) -> Result<*const T, IpProto> {
     let len = size_of::<T>();
     if start + offset + len > end {
-        return Err(());
+        return Err(IpProto::Reserved);
     }
     Ok((start + offset) as *const T)
 }
@@ -48,7 +49,7 @@ impl ContextWrapper {
         }
     }
 
-    pub fn to_parse_result(&self, v4: bool, input: bool) -> Result<ParseResult, ()> {
+    pub fn to_parse_result(&self, v4: bool, input: bool) -> Result<ParseResult, IpProto> {
         let (proto, destination_addr_v4, source_addr_v4, destination_addr_v6, source_addr_v6) =
             if v4 {
                 let ipv4hdr: Ipv4Hdr = unsafe { *ptr_at_u(self.data, self.data_end, EthHdr::LEN)? };
@@ -84,7 +85,7 @@ impl ContextWrapper {
                     unsafe { *ptr_at_u(self.data, self.data_end, EthHdr::LEN + len)? };
                 (u16::from_be(udphdr.source), u16::from_be(udphdr.dest))
             }
-            _ => return Err(()),
+            _ => return Err(proto),
         };
 
         Ok(ParseResult {
@@ -103,20 +104,20 @@ impl ContextWrapper {
         })
     }
 
-    pub fn handle_as_tc(&self) -> Result<i32, ()> {
+    pub fn handle_as_tc(&self) -> Result<i32, IpProto> {
         let ethhdr: EthHdr = unsafe { *ptr_at_u(self.data, self.data_end, 0)? };
         match ethhdr.ether_type {
-            EtherType::Ipv4 => handle_egress_v4(&self),
-            EtherType::Ipv6 => handle_egress_v6(&self),
+            EtherType::Ipv4 => Ok(handle_egress_v4(&self)),
+            EtherType::Ipv6 => Ok(handle_egress_v6(&self)),
             _ => Ok(TC_ACT_PIPE),
         }
     }
-    pub fn handle_as_xdp(&self) -> Result<u32, ()> {
+    pub fn handle_as_xdp(&self) -> Result<u32, IpProto> {
         let ethhdr: EthHdr = unsafe { *ptr_at_u(self.data, self.data_end, 0)? };
 
         match ethhdr.ether_type {
-            EtherType::Ipv4 => handle_ingress_v4(&self),
-            EtherType::Ipv6 => handle_ingress_v6(&self),
+            EtherType::Ipv4 => Ok(handle_ingress_v4(&self)),
+            EtherType::Ipv6 => Ok(handle_ingress_v6(&self)),
             _ => Ok(xdp_action::XDP_PASS),
         }
     }

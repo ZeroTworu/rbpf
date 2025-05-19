@@ -6,7 +6,7 @@ use aya_ebpf::{
     macros::{classifier, xdp},
     programs::{TcContext, XdpContext},
 };
-
+use network_types::ip::IpProto;
 use rbpf_ebpf::ip::ContextWrapper;
 
 #[classifier]
@@ -19,12 +19,12 @@ pub fn tc_ingress(ctx: XdpContext) -> u32 {
     try_tc_ingress(ctx).unwrap_or_else(|_| xdp_action::XDP_DROP)
 }
 
-fn try_tc_ingress(ctx: XdpContext) -> Result<u32, ()> {
+fn try_tc_ingress(ctx: XdpContext) -> Result<u32, IpProto> {
     let wctx = ContextWrapper::from_xdp(&ctx);
     wctx.handle_as_xdp()
 }
 
-fn try_tc_egress(ctx: TcContext) -> Result<i32, ()> {
+fn try_tc_egress(ctx: TcContext) -> Result<i32, IpProto> {
     let wctx = ContextWrapper::from_tc(&ctx);
     wctx.handle_as_tc()
 }

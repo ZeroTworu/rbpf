@@ -24,6 +24,7 @@ pub struct LogMessage {
     pub destination_addr_v4: u32,
     pub rule_id: u32,
     pub ifindex: u32,
+    pub unhandled_protocol: u8,
 
     pub source_port: u16,
     pub destination_port: u16,

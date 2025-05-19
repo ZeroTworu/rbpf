@@ -1,6 +1,7 @@
 use crate::control::change_socket_owner_mode;
 use crate::rules::get_rule_name;
 use crate::settings::Settings;
+use crate::ipproto;
 use aya::maps::{MapData, RingBuf};
 use core::net::IpAddr;
 use core::str::from_utf8;
@@ -10,7 +11,7 @@ use log::{debug, error, info, warn};
 use rbpf_common::logs::logs::{
     ActionType, LogMessageSerialized, ProtocolType, ProtocolVersionType, TrafficType,
 };
-use rbpf_common::logs::{DEBUG, INFO, LogMessage, WARN};
+use rbpf_common::logs::{DEBUG, ERROR, INFO, LogMessage, WARN};
 use std::collections::HashMap;
 use std::ffi::CStr;
 use std::mem::MaybeUninit;
@@ -215,7 +216,11 @@ impl WLogMessage {
             return format!("[{}] {} {}", &msg, &info, &rule_name.name);
         }
 
-        format!("[{}] {}", &msg, &info)
+        if self.msg.level == ERROR {
+            format!("{} {}", ipproto::from_u8_to_str(&self.msg.unhandled_protocol), &msg)
+        } else {
+            format!("[{}] {}", &msg, &info)
+        }
     }
 
     async fn resolver_to_str(
