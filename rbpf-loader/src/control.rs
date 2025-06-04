@@ -60,13 +60,11 @@ pub async fn control_loop(settings: Arc<Settings>, ebpf: &mut Ebpf) -> anyhow::R
                 match control.action {
                     ControlAction::Reload => {
                         rules::load_rules_from_dir(&settings.rules_path, ebpf).await?;
-                        socket.flush().await?;
                     }
                     ControlAction::GetRules => {
                         let rules = rules::get_rules().await;
                         let json_data = serde_json::to_vec(&rules)?;
                         socket.write_all(&json_data).await?;
-                        socket.flush().await?;
                     }
                     ControlAction::UpdateRule => {
                         rules::change_rule(control.rule.clone()).await;
@@ -74,8 +72,7 @@ pub async fn control_loop(settings: Arc<Settings>, ebpf: &mut Ebpf) -> anyhow::R
                         let rules = rules::get_rules().await;
                         let json_data = serde_json::to_vec(&rules)?;
                         socket.write_all(&json_data).await?;
-                        socket.flush().await?;
-                    }
+                      }
                     ControlAction::CreateRule => {
                         let mut new_rule = control.rule.clone();
                         new_rule.uindex = rules::get_rules_len().await;

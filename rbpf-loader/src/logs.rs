@@ -1,7 +1,7 @@
 use crate::control::change_socket_owner_mode;
-use crate::ipproto;
 use crate::rules::get_rule_name;
 use crate::settings::Settings;
+use crate::ipproto;
 use aya::maps::{MapData, RingBuf};
 use core::net::IpAddr;
 use core::str::from_utf8;
@@ -179,7 +179,7 @@ impl WLogMessage {
                 " TCP UDP"
             } else if self.msg.udp {
                 " UDP"
-            } else if self.msg.tcp {
+            } else if self.msg.tcp{
                 " TCP"
             } else {
                 ""
@@ -231,12 +231,7 @@ impl WLogMessage {
         }
 
         if self.msg.level == ERROR {
-            format!(
-                "[{}] {} {}",
-                &msg,
-                ipproto::from_u8_to_str(&self.msg.unhandled_protocol),
-                &info
-            )
+            format!("[{}] {} {}", &msg , ipproto::from_u8_to_str(&self.msg.unhandled_protocol), &info)
         } else {
             format!("[{}] {}", &msg, &info)
         }
@@ -266,7 +261,7 @@ impl WLogMessage {
         let mut ts: timespec = unsafe { MaybeUninit::zeroed().assume_init() };
         let res = unsafe { clock_gettime(CLOCK_MONOTONIC, &mut ts) };
         if res != 0 {
-            return 0; // или обработка ошибки
+            return 0;
         }
 
         let now_ktime_ns = (ts.tv_sec as u64) * 1_000_000_000 + (ts.tv_nsec as u64);
