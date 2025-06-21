@@ -8,7 +8,7 @@ license = "MIT"
 aya-ebpf = { workspace = true }
 network-types = "0.0.7"
 
-rbpf-common = { path = "../rbpf-common"}
+rbpf-common = { path = "../rbpf-common" }
 
 [build-dependencies]
 which = { workspace = true }

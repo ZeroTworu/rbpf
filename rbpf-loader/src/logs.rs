@@ -1,7 +1,8 @@
 use crate::control::change_socket_owner_mode;
+use crate::elasticsearch::ElasticLogs;
+use crate::ipproto;
 use crate::rules::get_rule_name;
 use crate::settings::Settings;
-use crate::ipproto;
 use aya::maps::{MapData, RingBuf};
 use core::net::IpAddr;
 use core::str::from_utf8;
@@ -41,6 +42,15 @@ pub struct WLogMessage {
 }
 
 impl WLogMessage {
+    
+    pub async fn get_rule_name<'a >(&'a self) -> &'a str {
+        if self.msg.rule_id != 0 {
+            let rule = get_rule_name(self.msg.rule_id).await.unwrap();
+            rule.name;
+        }
+        ""
+    }
+    
     pub async fn to_serialized(&self) -> LogMessageSerialized {
         let rule_name = if self.msg.rule_id != 0 {
             match get_rule_name(self.msg.rule_id).await {
@@ -179,7 +189,7 @@ impl WLogMessage {
                 " TCP UDP"
             } else if self.msg.udp {
                 " UDP"
-            } else if self.msg.tcp{
+            } else if self.msg.tcp {
                 " TCP"
             } else {
                 ""
@@ -231,7 +241,12 @@ impl WLogMessage {
         }
 
         if self.msg.level == ERROR {
-            format!("[{}] {} {}", &msg , ipproto::from_u8_to_str(&self.msg.unhandled_protocol), &info)
+            format!(
+                "[{}] {} {}",
+                &msg,
+                ipproto::from_u8_to_str(&self.msg.unhandled_protocol),
+                &info
+            )
         } else {
             format!("[{}] {}", &msg, &info)
         }
@@ -257,7 +272,7 @@ impl WLogMessage {
         }
     }
 
-    fn unix_time_stamp(&self) -> u64 {
+    pub fn unix_time_stamp(&self) -> u64 {
         let mut ts: timespec = unsafe { MaybeUninit::zeroed().assume_init() };
         let res = unsafe { clock_gettime(CLOCK_MONOTONIC, &mut ts) };
         if res != 0 {
@@ -282,7 +297,11 @@ pub async fn log_listener(
     tx: mpsc::Sender<WLogMessage>,
 ) -> anyhow::Result<()> {
     let (_, rx) = watch::channel(false);
+    let elastic = ElasticLogs::new(settings.elastic_url.as_str()).await?;
     info!("Starting log listener...");
+    if settings.elk_on {
+        let _ = elastic.create_index().await?;
+    }
     let task = tokio::spawn(async move {
         let mut async_fd = AsyncFd::new(ring).unwrap();
         let mut rx = rx.clone();
@@ -291,16 +310,25 @@ pub async fn log_listener(
                 _ = async_fd.readable_mut() => {
                     let mut guard = async_fd.readable_mut().await.unwrap();
                     let rb = guard.get_inner_mut();
-
                     while let Some(read) = rb.next() {
                         let msg: LogMessage = unsafe { std::ptr::read_unaligned(read.as_ptr() as *const _) };
                         let msg_wrapper: WLogMessage = WLogMessage { msg };
+                        
                         match msg_wrapper.msg.level {
                             DEBUG => debug!("{}", msg_wrapper.log(settings.resolve_ptr_records).await),
                             INFO => info!("{}", msg_wrapper.log(settings.resolve_ptr_records).await),
                             WARN => warn!("{}", msg_wrapper.log(settings.resolve_ptr_records).await),
                             _ => error!("{}", msg_wrapper.log(settings.resolve_ptr_records).await),
                         }
+                        
+                        if settings.elk_on {
+                            let res = elastic.index_log_message(&msg_wrapper).await;
+                            match res {
+                                Ok(_) => {continue;},
+                                Err(e) => {error!("Elastic error: {}", e); continue;}
+                            }
+                        }
+                        
                         if settings.logs_on {
                             tx.send(msg_wrapper).unwrap()
                         }

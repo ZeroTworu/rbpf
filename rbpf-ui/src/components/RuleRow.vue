@@ -160,22 +160,30 @@ const selectedTraffic = ref([
 
 // Обновление значений в объекте rule
 const updateProtocolType = () => {
-  props.rule.tcp = selectedProtocols.value.includes(ProtocolType.TCP);
-  props.rule.udp = selectedProtocols.value.includes(ProtocolType.UDP);
-  store.dispatch('rules/updateRule', props.rule);
+  let rule = props.rule;
+  if(rule) {
+    rule.tcp = selectedProtocols.value.includes(ProtocolType.TCP);
+    rule.udp = selectedProtocols.value.includes(ProtocolType.UDP);
+    store.dispatch('rules/updateRule', props.rule);
+  }
 };
 
 const updateProtocolVersion = () => {
-  props.rule.v4 = selectedVersions.value.includes(ProtocolVersionType.V4);
-  props.rule.v6 = selectedVersions.value.includes(ProtocolVersionType.V6);
-  store.dispatch('rules/updateRule', props.rule);
+  let rule = props.rule;
+  if(rule) {
+    rule.v4 = selectedVersions.value.includes(ProtocolVersionType.V4);
+    rule.v6 = selectedVersions.value.includes(ProtocolVersionType.V6);
+    store.dispatch('rules/updateRule', props.rule);
+  }
 };
 
 const updateTrafficType = () => {
-  props.rule.input = selectedTraffic.value.includes(TrafficType.Input);
-  props.rule.output = selectedTraffic.value.includes(TrafficType.Output);
-  store.dispatch('rules/updateRule', props.rule);
-
+  let rule = props.rule;
+  if(rule) {
+    rule.input = selectedTraffic.value.includes(TrafficType.Input);
+    rule.output = selectedTraffic.value.includes(TrafficType.Output);
+    store.dispatch('rules/updateRule', props.rule);
+  }
 };
 
 const closeSelect = (type: string) => {

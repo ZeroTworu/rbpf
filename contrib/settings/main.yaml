@@ -3,12 +3,12 @@ interfaces:
 #    - "virbr0"
 #    - "virbr1"
     - "enp5s0"
-    - "lo"
+#    - "lo"
   output:
 #    - "virbr0"
 #    - "virbr1"
     - "enp5s0"
-    - "lo"
+#    - "lo"
 resolve_ptr_records: false
 control:
   on:  true
@@ -23,3 +23,6 @@ logs:
 db:
   on: true
   path: "/opt/rbpf/rules.db"
+elk:
+  on: true
+  elastic_host: "http://127.0.0.1:9200"

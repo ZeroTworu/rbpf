@@ -18,7 +18,7 @@ log = { workspace = true }
 tokio = { workspace = true, features = ["full"] }
 clap = { workspace = true, features = ["derive"] }
 yaml-rust2 = { workspace = true }
-serde = { workspace = true }
+elasticsearch = "9.0.0-alpha.1"
 serde_json = { workspace = true }
 
 sqlx = { version = "0.8.3", features = ["sqlite", "runtime-tokio", "macros", "migrate"] }

@@ -25,6 +25,9 @@ pub struct Settings {
 
     pub db_on: bool,
     pub db_path: String,
+    
+    pub elk_on: bool,
+    pub elastic_url: String,
 }
 
 #[derive(Debug, Parser)]
@@ -50,6 +53,7 @@ pub async fn read_settings(ebpf: &mut Ebpf) -> anyhow::Result<Settings> {
     let control = &settings[0]["control"];
     let logs = &settings[0]["logs"];
     let db = &settings[0]["db"];
+    let elk = &settings[0]["elk"];
 
     rules::load_rules_from_dir(&opt.rules, ebpf).await?;
 
@@ -71,6 +75,9 @@ pub async fn read_settings(ebpf: &mut Ebpf) -> anyhow::Result<Settings> {
 
         db_on: db["on"].as_bool().unwrap(),
         db_path: db["path"].as_str().unwrap().to_string(),
+        
+        elk_on: elk["on"].as_bool().unwrap(),
+        elastic_url: elk["elastic_host"].as_str().unwrap().to_string(),
     };
 
     if settings_struct.db_on {

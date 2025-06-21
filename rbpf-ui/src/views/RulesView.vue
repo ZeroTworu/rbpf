@@ -40,7 +40,7 @@ const headers = [
 
 
 const rules = computed(() => {
-  let rules =  store.getters["rules/rules"];
+  const rules =  store.getters["rules/rules"];
   return rules.sort((a, b) => a.rule_id - b.rule_id);
 });
 
