@@ -44,7 +44,7 @@ export interface Rule {
     ifindex: number;
     v6: boolean;
     v4: boolean;
-    uindex: number;
+    prior: number;
     from_db: boolean;
 }
 
@@ -74,7 +74,7 @@ function withDefaults(rule: Partial<Rule>): Rule {
         input: false,
         output: false,
         ifindex: 0,
-        uindex: 0,
+        prior: 0,
         v6: false,
         v4: false,
         from_db: true,

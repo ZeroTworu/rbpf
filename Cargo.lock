@@ -2085,7 +2085,6 @@ dependencies = [
  "poem",
  "poem-openapi",
  "rbpf-common",
- "serde",
  "serde_json",
  "tokio",
  "yaml-rust2",

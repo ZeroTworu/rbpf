@@ -50,7 +50,7 @@ pub async fn fetch_rules() -> anyhow::Result<Vec<RuleWithName>> {
             rule_name, id as rule_id, "drop", ok, v4, v6, tcp, udp, "on",
             source_addr_v6, destination_addr_v6,
             source_addr_v4, destination_addr_v4,
-            ifindex, uindex,
+            ifindex, "order",
             source_port_start, source_port_end,
             destination_port_start, destination_port_end,
             input, output,
@@ -73,7 +73,7 @@ pub async fn fetch_rules() -> anyhow::Result<Vec<RuleWithName>> {
 
         rules.push(RuleWithName {
             name: row.get("rule_name"),
-            uindex: row.get("uindex"),
+            order: row.get("order"),
 
             drop: row.get("drop"),
             ok: row.get("ok"),
@@ -126,7 +126,7 @@ pub async fn update_rule(rule: &RuleWithName) -> bool {
             "drop" = ?, ok = ?, v4 = ?, v6 = ?, tcp = ?, udp = ?, "on" = ?,
             source_addr_v6 = ?, destination_addr_v6 = ?,
             source_addr_v4 = ?, destination_addr_v4 = ?,
-            ifindex = ?, uindex = ?,
+            ifindex = ?, "order" = ?,
             source_port_start = ?, source_port_end = ?,
             destination_port_start = ?, destination_port_end = ?,
             input = ?, output = ?,
@@ -148,7 +148,7 @@ pub async fn update_rule(rule: &RuleWithName) -> bool {
     .bind(rule.source_addr_v4)
     .bind(rule.destination_addr_v4)
     .bind(rule.ifindex)
-    .bind(rule.uindex)
+    .bind(rule.order)
     .bind(rule.source_port_start)
     .bind(rule.source_port_end)
     .bind(rule.destination_port_start)
@@ -195,7 +195,7 @@ pub async fn insert_rule(rule: &RuleWithName) -> i64 {
             "drop", ok, v4, v6, tcp, udp, "on",
             source_addr_v6, destination_addr_v6,
             source_addr_v4, destination_addr_v4,
-            ifindex, uindex,
+            ifindex, "order",
             source_port_start, source_port_end,
             destination_port_start, destination_port_end,
             input, output,
@@ -218,7 +218,7 @@ pub async fn insert_rule(rule: &RuleWithName) -> i64 {
     .bind(rule.source_addr_v4)
     .bind(rule.destination_addr_v4)
     .bind(rule.ifindex)
-    .bind(rule.uindex)
+    .bind(rule.order)
     .bind(rule.source_port_start)
     .bind(rule.source_port_end)
     .bind(rule.destination_port_start)

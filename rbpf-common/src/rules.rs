@@ -92,7 +92,7 @@ pub mod rules {
     #[derive(Clone, Debug, Deserialize, Serialize, Object)]
     pub struct RuleWithName {
         pub name: String,
-        pub uindex: u32,
+        pub order: u32,
 
         pub drop: bool,
         pub ok: bool,
@@ -183,6 +183,7 @@ pub mod rules {
         pub fn from_yaml(yaml: &Yaml) -> Self {
             // TODO: А не так страшно можно?
             let name = yaml["name"].as_str().unwrap();
+            let order = yaml["order"].as_i64().unwrap() as u32;
 
             let tcp = yaml["tcp"].as_bool().unwrap();
             let udp = yaml["udp"].as_bool().unwrap();
@@ -230,7 +231,7 @@ pub mod rules {
 
             Self {
                 name: name.to_string(),
-                uindex: 0,
+                order,
 
                 drop,
                 ok,
@@ -346,7 +347,7 @@ pub mod rules {
         pub fn from_empty() -> Self {
             Self {
                 name: String::from("Empty fake rule!"),
-                uindex: 0,
+                order: 0,
 
                 drop: false,
                 ok: false,

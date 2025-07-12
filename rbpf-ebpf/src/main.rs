@@ -14,7 +14,7 @@ pub fn tc_egress(ctx: TcContext) -> i32 {
 }
 
 #[xdp]
-pub fn tc_ingress(ctx: XdpContext) -> u32 {
+pub fn xdp_ingress(ctx: XdpContext) -> u32 {
     let wctx = ContextWrapper::from_xdp(&ctx);
     wctx.handle_as_xdp()
 }

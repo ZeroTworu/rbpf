@@ -1,5 +1,5 @@
 name: "Ban opennet.ru (HTTP Only)"
-
+order: 14
 iface: "*"
 
 tcp: true
@@ -25,5 +25,5 @@ destination_addr_v6: ""
 source_port_start: 0
 source_port_end: 0
 
-destination_port_start: 80
-destination_port_end: 80
+destination_port_start: 0
+destination_port_end: 0

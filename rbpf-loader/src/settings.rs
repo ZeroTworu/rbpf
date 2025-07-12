@@ -58,7 +58,7 @@ pub async fn read_settings(ebpf: &mut Ebpf) -> anyhow::Result<Settings> {
     let db = &settings[0]["db"];
     let elk = &settings[0]["elk"];
 
-    rules::load_rules_from_dir(&opt.rules, ebpf).await?;
+    rules::load_rules_from_dir(&opt.rules).await?;
 
     let settings_struct = Settings {
         resolve_ptr_records: (&settings[0])["resolve_ptr_records"].as_bool().unwrap(),
@@ -87,11 +87,12 @@ pub async fn read_settings(ebpf: &mut Ebpf) -> anyhow::Result<Settings> {
         info!("Database on.");
         database::init_db(&settings_struct.db_path).await?;
         database::migrate(&opt.migrations).await?;
-        rules::load_rules_from_db(ebpf).await?;
+        rules::load_rules_from_db().await?;
     } else {
         info!("Database off.")
     }
 
+    rules::make_bpf_maps(ebpf).await?;
     init_ifaces(settings, ebpf, opt.fi, opt.fo).await?;
 
     Ok(settings_struct)
@@ -127,7 +128,7 @@ async fn init_ifaces(
 
     match interfaces["input"].as_vec() {
         Some(interfaces) => {
-            let program_ingress: &mut Xdp = ebpf.program_mut("tc_ingress").unwrap().try_into()?;
+            let program_ingress: &mut Xdp = ebpf.program_mut("xdp_ingress").unwrap().try_into()?;
             program_ingress.load()?;
 
             for iface in interfaces {
@@ -150,19 +151,24 @@ async fn init_ifaces(
 }
 
 async fn force_in(ifname: &str) {
-    warn!("Force INPUT for {}", ifname);
-    Command::new("ip")
+    let res = Command::new("ip")
         .args(["link", "set", "dev", ifname, "xdp", "off"])
         .output()
-        .await
-        .unwrap();
+        .await;
+    match res {
+        Ok(_) => info!("Force INPUT for {} successful", ifname),
+        Err(e) => warn!("Failed to force input for {}: {}", ifname, e),
+    }
 }
 
 async fn force_out(ifname: &str) {
-    warn!("Force OUTPUT for {}", ifname);
-    Command::new("tc")
+    let res = Command::new("tc")
         .args(["qdisc", "add", "dev", ifname, "clsact"])
         .output()
-        .await
-        .unwrap();
+        .await;
+
+    match res {
+        Ok(_) => info!("Force OUTPUT for {} successful", ifname),
+        Err(e) => warn!("Failed to force output: {}, if: {}", e, ifname),
+    }
 }

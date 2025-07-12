@@ -15,7 +15,6 @@ log = { workspace = true }
 tokio = { workspace = true, features = ["rt-multi-thread", "macros"]  }
 clap = { workspace = true, features = ["derive"] }
 yaml-rust2 = { workspace = true }
-serde = { workspace = true }
 serde_json = { workspace = true }
 
 poem = { version = "3.1.8",features = ["websocket", "static-files"]  }

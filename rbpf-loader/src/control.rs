@@ -59,7 +59,9 @@ pub async fn control_loop(settings: Arc<Settings>, ebpf: &mut Ebpf) -> anyhow::R
                 let control = serde_json::from_slice::<Control>(received_data)?;
                 match control.action {
                     ControlAction::Reload => {
-                        rules::load_rules_from_dir(&settings.rules_path, ebpf).await?;
+                        rules::load_rules_from_dir(&settings.rules_path).await?;
+                        rules::load_rules_from_db().await?;
+                        rules::make_bpf_maps(ebpf).await?;
                     }
                     ControlAction::GetRules => {
                         let rules = rules::get_rules().await;
@@ -75,7 +77,7 @@ pub async fn control_loop(settings: Arc<Settings>, ebpf: &mut Ebpf) -> anyhow::R
                     }
                     ControlAction::CreateRule => {
                         let mut new_rule = control.rule.clone();
-                        new_rule.uindex = rules::get_rules_len().await;
+                        new_rule.order = rules::get_rules_len().await;
                         let rule_id = u32::try_from(database::insert_rule(&new_rule).await)?;
                         if rule_id != 0 {
                             new_rule.rule_id = rule_id;

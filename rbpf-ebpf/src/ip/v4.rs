@@ -1,5 +1,5 @@
 use crate::ip::ContextWrapper;
-use crate::{logs, rules::rule};
+use crate::{logs, rules};
 use aya_ebpf::bindings::{TC_ACT_PIPE, TC_ACT_SHOT, xdp_action};
 use rbpf_common::logs::{DEBUG, INFO, WARN};
 use rbpf_common::rules::Action;
@@ -16,7 +16,7 @@ impl ContextWrapper {
             }
         };
 
-        let (action, rule_id) = rule::check_rule(&ret);
+        let (action, rule_id) = rules::check_rule(&ret);
 
         match action {
             Action::Ok => {
@@ -28,7 +28,7 @@ impl ContextWrapper {
                 xdp_action::XDP_DROP
             }
             Action::Pipe => {
-                logs::send_from_rule("PIPE IN v4", rule_id, &ret, DEBUG);
+                logs::send_from_rule("PIPE IN v4", 0, &ret, DEBUG);
                 xdp_action::XDP_PASS
             }
         }
@@ -45,9 +45,8 @@ impl ContextWrapper {
             }
         };
 
-        logs::send_from_rule("OUT v4", 0, &ret, DEBUG);
+        let (action, rule_id) = rules::check_rule(&ret);
 
-        let (action, rule_id) = rule::check_rule(&ret);
         match action {
             Action::Ok => {
                 logs::send_from_rule("OK OUT v4", rule_id, &ret, INFO);

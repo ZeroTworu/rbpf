@@ -1,5 +1,5 @@
 name: "Ban IPv6 localhost"
-
+order: 0
 iface: "lo"
 
 on: true
@@ -10,11 +10,11 @@ udp: false
 ok: true
 drop: false
 
-input: false
+input: true
 output: true
 
-v4: true
-v6: false
+v4: false
+v6: true
 
 source_addr_v4: ""
 destination_addr_v4: ""

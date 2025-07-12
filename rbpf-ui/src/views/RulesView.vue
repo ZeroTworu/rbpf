@@ -5,6 +5,7 @@
     <v-data-table
         :headers="headers"
         :items="rules"
+        :sort-by="[{ key: 'order', order: 'asc' }]"
         class="elevation-1 flex-grow-1"
         density="comfortable"
     >
@@ -77,15 +78,5 @@ onMounted(() => {
 </script>
 
 <style scoped>
-.v-container {
-  height: 100vh;
-}
 
-.v-card {
-  width: 100%;
-}
-
-.v-data-table {
-  width: 100%;
-}
 </style>
