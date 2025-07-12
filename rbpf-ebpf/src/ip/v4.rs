@@ -16,9 +16,8 @@ impl ContextWrapper {
             }
         };
 
-        logs::send_from_rule("IN v4", 0, &ret, DEBUG);
-
         let (action, rule_id) = rule::check_rule(&ret);
+
         match action {
             Action::Ok => {
                 logs::send_from_rule("OK IN v4", rule_id, &ret, INFO);

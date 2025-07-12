@@ -55,13 +55,6 @@
 * `./build.sh --build-vue` - Сборка WebUI приложения.
 * `./build.sh --build-vue-zip` - Сборка и упаковка WebUI приложения.
 
-------
-* `./build.sh --build-zst` - Полная сборка пакета формата Arch Linux (x86_64).
-* `./build.sh --build-deb` - Полная сборка пакета формата Debian Linux (x86_64).
-* `./build.sh --build-rpm` - Полная сборка пакета формата Red Hat Linux (x86_64).
-
-    * **WARNING!** Установку и работоспособность проверял только на `zst`, лень пока заниматься виртуалками с Debian / Red Hat.
-
 #### Настройка рабочей среды для разработки:
 1. Установить [Rust](https://www.rust-lang.org/learn/get-started)
 2. `rustup default stable`
@@ -120,6 +113,11 @@
 
 
 * `path` - Путь до файла базы данных. Относительный или обсалютный.
+
+`elk:` - Блок настроек отвечающий за работу с ELK (Elasticsearch, Logstash, Kibana)
+* `on` - Включает / выключает работу с ELK.
+* `elastic_host` - Адрес хоста Elasticsearch куда слать логи.
+
 
 ##### Настройки `rbpf-http` находятся в `contrib/settings/http.yaml`
 * При запуске можно указать ключ `-c <settings path>`, по умолчанию предполагается, что настройки лежат рядом с бинарником.

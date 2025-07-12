@@ -25,7 +25,7 @@ pub struct Settings {
 
     pub db_on: bool,
     pub db_path: String,
-    
+
     pub elk_on: bool,
     pub elastic_url: String,
 }
@@ -75,7 +75,7 @@ pub async fn read_settings(ebpf: &mut Ebpf) -> anyhow::Result<Settings> {
 
         db_on: db["on"].as_bool().unwrap(),
         db_path: db["path"].as_str().unwrap().to_string(),
-        
+
         elk_on: elk["on"].as_bool().unwrap(),
         elastic_url: elk["elastic_host"].as_str().unwrap().to_string(),
     };

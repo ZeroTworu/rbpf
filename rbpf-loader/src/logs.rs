@@ -42,15 +42,14 @@ pub struct WLogMessage {
 }
 
 impl WLogMessage {
-    
-    pub async fn get_rule_name<'a >(&'a self) -> &'a str {
+    pub async fn get_rule_name<'a>(&'a self) -> &'a str {
         if self.msg.rule_id != 0 {
             let rule = get_rule_name(self.msg.rule_id).await.unwrap();
             rule.name;
         }
         ""
     }
-    
+
     pub async fn to_serialized(&self) -> LogMessageSerialized {
         let rule_name = if self.msg.rule_id != 0 {
             match get_rule_name(self.msg.rule_id).await {
@@ -313,14 +312,14 @@ pub async fn log_listener(
                     while let Some(read) = rb.next() {
                         let msg: LogMessage = unsafe { std::ptr::read_unaligned(read.as_ptr() as *const _) };
                         let msg_wrapper: WLogMessage = WLogMessage { msg };
-                        
+
                         match msg_wrapper.msg.level {
                             DEBUG => debug!("{}", msg_wrapper.log(settings.resolve_ptr_records).await),
                             INFO => info!("{}", msg_wrapper.log(settings.resolve_ptr_records).await),
                             WARN => warn!("{}", msg_wrapper.log(settings.resolve_ptr_records).await),
                             _ => error!("{}", msg_wrapper.log(settings.resolve_ptr_records).await),
                         }
-                        
+
                         if settings.elk_on {
                             let res = elastic.index_log_message(&msg_wrapper).await;
                             match res {
@@ -328,7 +327,7 @@ pub async fn log_listener(
                                 Err(e) => {error!("Elastic error: {}", e); continue;}
                             }
                         }
-                        
+
                         if settings.logs_on {
                             tx.send(msg_wrapper).unwrap()
                         }
