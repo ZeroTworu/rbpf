@@ -1,14 +1,14 @@
-FROM rust:slim AS arm-builder
+FROM rust:slim AS aarch64-builder
 
 COPY --from=hanyuu/rbpf-rust-builder:arm-ebpf /app/target/bpfel-unknown-none/release/rbpf /app/ebpf/rbpf.o
 
-RUN dpkg --add-architecture armhf && \
+RUN dpkg --add-architecture arm64 && \
     apt-get update && \
     apt-get install -y \
-    gcc-arm-linux-gnueabihf \
-    libc6-dev-armhf-cross \
-    zlib1g-dev:armhf \
-    libssl-dev:armhf \
+    gcc-aarch64-linux-gnu \
+    libc6-dev-arm64-cross \
+    zlib1g-dev:arm64 \
+    libssl-dev:arm64 \
     pkg-config \
     build-essential \
     curl \
@@ -18,43 +18,32 @@ RUN dpkg --add-architecture armhf && \
     libclang-dev \
     && rm -rf /var/lib/apt/lists/*
 
-
-RUN rustup toolchain install nightly && \
-    rustup component add rust-src --toolchain nightly && \
-    rustup default stable && \
-    rustup target add armv7-unknown-linux-gnueabihf
-
+RUN rustup target add aarch64-unknown-linux-gnu
 
 RUN cargo install bpf-linker --locked
 
 WORKDIR /app
+
 COPY ../../Cargo.toml ./Cargo.toml
 
 RUN sed -i '/^members = \[/ s/"xtask",\? *//g; s/, *\]/\]/' Cargo.toml
 
 COPY ../../Cargo.lock ./Cargo.lock
-
 COPY ../../rbpf-loader/Cargo.toml ./rbpf-loader/Cargo.toml
-
 COPY ../../rbpf-http/Cargo.toml ./rbpf-http/Cargo.toml
-
 COPY ../../rbpf-common/Cargo.toml ./rbpf-common/Cargo.toml
-
 COPY ../../rbpf-ebpf/Cargo.toml ./rbpf-ebpf/Cargo.toml
 
-RUN cargo fetch
 ENV OPENSSL_NO_PKG_CONFIG=1
-ENV OPENSSL_DIR=/usr/arm-linux-gnueabihf
-ENV OPENSSL_LIB_DIR=/usr/lib/arm-linux-gnueabihf
-ENV OPENSSL_INCLUDE_DIR=/usr/include/arm-linux-gnueabihf
-
+ENV OPENSSL_DIR=/usr/aarch64-linux-gnu
+ENV OPENSSL_LIB_DIR=/usr/lib/aarch64-linux-gnu
+ENV OPENSSL_INCLUDE_DIR=/usr/include
 ENV PKG_CONFIG_ALLOW_CROSS=1
-ENV CC_armv7_unknown_linux_gnueabihf=arm-linux-gnueabihf-gcc
-ENV AR_armv7_unknown_linux_gnueabihf=arm-linux-gnueabihf-ar
-ENV RUSTFLAGS="-C linker=arm-linux-gnueabihf-gcc"
+ENV CC_aarch64_unknown_linux_gnu=aarch64-linux-gnu-gcc
+ENV AR_aarch64_unknown_linux_gnu=aarch64-linux-gnu-ar
+ENV RUSTFLAGS="-C linker=aarch64-linux-gnu-gcc"
 
 RUN cargo fetch
-RUN cargo install bpf-linker --locked
 
 COPY ../../rbpf-common/ ./rbpf-common/
 COPY ../../rbpf-ebpf/ ./rbpf-ebpf/
@@ -63,9 +52,7 @@ COPY ../../rbpf-loader/ ./rbpf-loader/
 COPY ../../contrib/ ./contrib/
 
 
-
-RUN cargo build --release --target armv7-unknown-linux-gnueabihf \
+RUN cargo build --release --target aarch64-unknown-linux-gnu \
     --package rbpf-loader \
     --package rbpf-http \
-    --no-default-features \
-    --target-dir=/app/target/
+    --no-default-features

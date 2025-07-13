@@ -20,6 +20,12 @@ pub fn build_rust_binaries_generic(arch: &str) -> Result<()> {
             "armv7-unknown-linux-gnueabihf/release",
             "./rbpf-build/opt/rbpf/bin/armv7/",
         ),
+        "aarch64" => (
+            "rbpf-build-aarch64",
+            "./contrib/docker/Dockerfile.rustbuild.aarch64",
+            "aarch64-unknown-linux-gnu/release",
+            "./rbpf-build/opt/rbpf/bin/aarch64/",
+        ),
         _ => anyhow::bail!("Unsupported arch: {}", arch),
     };
 
@@ -59,7 +65,7 @@ pub fn build_rust_binaries_generic(arch: &str) -> Result<()> {
             .with_context(|| format!("Failed to copy binary {bin}"))?;
     }
 
-    if arch == "armv7" {
+    if ["armv7", "aarch64"].contains(&arch) {
         Command::new("docker")
             .arg("cp")
             .arg(format!("extract-bin-{arch}:/app/ebpf/rbpf.o"))

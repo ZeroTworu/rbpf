@@ -296,11 +296,14 @@ pub async fn log_listener(
     tx: mpsc::Sender<WLogMessage>,
 ) -> anyhow::Result<()> {
     let (_, rx) = watch::channel(false);
-    let elastic = ElasticLogs::new(settings.elastic_url.as_str()).await?;
     info!("Starting log listener...");
-    if settings.elk_on {
-        let _ = elastic.create_index().await?;
-    }
+    let elastic = if settings.elk_on {
+        let instance = ElasticLogs::new(settings.elastic_url.as_str()).await?;
+        let _ = instance.create_index().await?;
+        Some(instance)
+    } else {
+        None
+    };
     let task = tokio::spawn(async move {
         let mut async_fd = AsyncFd::new(ring).unwrap();
         let mut rx = rx.clone();
@@ -320,11 +323,11 @@ pub async fn log_listener(
                             _ => error!("{}", msg_wrapper.log(settings.resolve_ptr_records).await),
                         }
 
-                        if settings.elk_on {
+                        if let Some(elastic) = &elastic {
                             let res = elastic.index_log_message(&msg_wrapper).await;
                             match res {
-                                Ok(_) => {continue;},
-                                Err(e) => {error!("Elastic error: {}", e); continue;}
+                                Ok(_) => {},
+                                Err(e) => error!("Elastic error: {}", e)
                             }
                         }
 

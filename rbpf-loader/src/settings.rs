@@ -41,8 +41,11 @@ pub struct Opt {
     #[clap(short, long, default_value = "./migrations/")]
     pub migrations: String,
 
-    #[clap(short, long)]
-    pub force: bool,
+    #[clap(long)]
+    pub fi: bool,
+
+    #[clap(long)]
+    pub fo: bool,
 }
 
 pub async fn read_settings(ebpf: &mut Ebpf) -> anyhow::Result<Settings> {
@@ -89,12 +92,17 @@ pub async fn read_settings(ebpf: &mut Ebpf) -> anyhow::Result<Settings> {
         info!("Database off.")
     }
 
-    init_ifaces(settings, ebpf, opt.force).await?;
+    init_ifaces(settings, ebpf, opt.fi, opt.fo).await?;
 
     Ok(settings_struct)
 }
 
-async fn init_ifaces(settings: Vec<Yaml>, ebpf: &mut Ebpf, force: bool) -> anyhow::Result<()> {
+async fn init_ifaces(
+    settings: Vec<Yaml>,
+    ebpf: &mut Ebpf,
+    fi: bool,
+    fo: bool,
+) -> anyhow::Result<()> {
     let interfaces = &settings[0]["interfaces"];
 
     match interfaces["output"].as_vec() {
@@ -104,11 +112,14 @@ async fn init_ifaces(settings: Vec<Yaml>, ebpf: &mut Ebpf, force: bool) -> anyho
             program_egress.load()?;
             for iface in interfaces {
                 let iface = iface.as_str().unwrap();
-                if force {
+                if fo {
                     force_out(iface).await
                 }
-                program_egress.attach(&iface, TcAttachType::Egress)?;
-                info!("Append output listener to: {}", iface);
+                let res = program_egress.attach(&iface, TcAttachType::Egress);
+                match res {
+                    Ok(_) => info!("Append output listener to: {}", iface),
+                    Err(e) => warn!("Failed to attach output: {}, iface: {}", e, iface),
+                }
             }
         }
         None => warn!("No output interfaces found"),
@@ -122,12 +133,15 @@ async fn init_ifaces(settings: Vec<Yaml>, ebpf: &mut Ebpf, force: bool) -> anyho
             for iface in interfaces {
                 let iface = iface.as_str().unwrap();
 
-                if force {
+                if fi {
                     force_in(iface).await;
                 }
 
-                program_ingress.attach(&iface, XdpFlags::default())?;
-                info!("Append input listener to: {}", iface);
+                let res = program_ingress.attach(&iface, XdpFlags::default());
+                match res {
+                    Ok(_) => info!("Append input listener to: {}", iface),
+                    Err(e) => warn!("Failed to attach input: {}, iface: {}", e, iface),
+                }
             }
         }
         None => warn!("No input interfaces found"),

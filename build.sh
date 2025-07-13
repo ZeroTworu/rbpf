@@ -24,6 +24,7 @@ help() {
   echo "USE ./build.sh [PARAM]:
         * --build-bin - Сборка Rust приложения. (x86_64)
         * --build-bin-armv7 - Сборка Rust приложения. (armv7)
+        * --build-bin-aarch64 - Сборка Rust приложения. (aarch64)
 
         * --build-bin-zip - Сборка и упаковка Rust приложения. (x86_64)
         * --build-bin-zip-armv7 - Сборка и упаковка Rust приложения. (armv7)
@@ -64,6 +65,9 @@ main() {
     --build-bin-armv7)
       run_xtask "build-bin armv7"
       ;;
+    --build-bin-aarch64)
+      run_xtask "build-bin aarch64"
+      ;;
     --build-zst)
       run_xtask "build-pkg zst"
       run_xtask "clean"
@@ -85,6 +89,10 @@ main() {
       ;;
     --build-bin-zip-armv7)
       run_xtask "build-bin-zip armv7"
+      run_xtask "clean"
+      ;;
+    --build-bin-zip-aarch64)
+      run_xtask "build-bin-zip aarch64"
       run_xtask "clean"
       ;;
     --build-vue-zip)

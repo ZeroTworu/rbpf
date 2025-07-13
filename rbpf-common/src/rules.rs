@@ -11,13 +11,13 @@ pub struct Rule {
     pub input: bool,
     pub output: bool,
 
-    #[cfg(target_arch = "x86_64")]
+    #[cfg(any(target_arch = "x86_64", target_arch = "aarch64"))]
     pub _reserved: bool,
-    #[cfg(target_arch = "x86_64")]
+    #[cfg(any(target_arch = "x86_64", target_arch = "aarch64"))]
     pub _pad1: [u8; 6],
 
     #[cfg(target_arch = "arm")]
-    pub _pad1: [u8; 5], // здесь можно убрать _reserved, т.к. и так выравнивается
+    pub _pad1: [u8; 5],
 
     pub source_addr_v6: u128,
     pub destination_addr_v6: u128,
@@ -37,7 +37,7 @@ pub struct Rule {
     pub source_mask_v6: u8,
     pub destination_mask_v6: u8,
 
-    #[cfg(target_arch = "x86_64")]
+    #[cfg(any(target_arch = "x86_64", target_arch = "aarch64"))]
     pub _pad2: [u8; 4],
 }
 
@@ -307,7 +307,7 @@ pub mod rules {
             }
         }
 
-        #[cfg(target_arch = "x86_64")]
+        #[cfg(any(target_arch = "x86_64", target_arch = "aarch64"))]
         pub fn to_common_rule(&self) -> Rule {
             Rule {
                 drop: self.drop,
@@ -342,6 +342,7 @@ pub mod rules {
                 _pad2: [0; 4],
             }
         }
+
         pub fn from_empty() -> Self {
             Self {
                 name: String::from("Empty fake rule!"),
