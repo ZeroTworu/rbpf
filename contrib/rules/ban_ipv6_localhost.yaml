@@ -7,8 +7,8 @@ on: true
 tcp: true
 udp: false
 
-ok: true
-drop: false
+ok: false
+drop: true
 
 input: true
 output: true
