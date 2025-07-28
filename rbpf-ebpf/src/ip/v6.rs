@@ -5,6 +5,7 @@ use rbpf_common::logs::{DEBUG, INFO, WARN};
 use rbpf_common::rules::Action;
 
 impl ContextWrapper {
+    #[inline(always)]
     pub fn handle_ingress_v6(&self) -> u32 {
         let ret = match self.to_parse_result(false, true) {
             Ok(ret) => ret,
@@ -34,6 +35,7 @@ impl ContextWrapper {
         }
     }
 
+    #[inline(always)]
     pub fn handle_egress_v6(&self) -> i32 {
         let ret = match self.to_parse_result(false, false) {
             Ok(ret) => ret,

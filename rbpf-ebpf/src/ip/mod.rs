@@ -54,13 +54,12 @@ pub struct ContextWrapper {
 impl ContextWrapper {
     #[inline(always)]
     pub fn from_xdp(ctx: &XdpContext) -> Self {
-        let ifindex: u32 = unsafe { (*ctx.ctx).ingress_ifindex };
-        Self::from_usize(ctx.data(), ctx.data_end(), ifindex)
+        unsafe { Self::from_usize(ctx.data(), ctx.data_end(), (*ctx.ctx).ingress_ifindex) }
     }
+
     #[inline(always)]
     pub fn from_tc(ctx: &TcContext) -> Self {
-        let ifindex: u32 = unsafe { (*ctx.skb.skb).ifindex };
-        Self::from_usize(ctx.data(), ctx.data_end(), ifindex)
+        unsafe { Self::from_usize(ctx.data(), ctx.data_end(), (*ctx.skb.skb).ifindex) }
     }
 
     #[inline(always)]
@@ -144,35 +143,33 @@ impl ContextWrapper {
             source_addr_v6,
             output: !input,
             v4,
-            v6: !v4,
             ifindex: self.ifindex,
         })
     }
 
     pub fn handle_as_tc(&self) -> i32 {
-        let ethhdr: EthHdr = unsafe {
-            let res = self.ptr_at_u(0);
-            match res {
+        let hdr = {
+            match self.ptr_at_u::<EthHdr>(0) {
+                Ok(ptr) => ptr,
                 Err(_) => return TC_ACT_SHOT,
-                Ok(t) => *t,
             }
         };
-        match ethhdr.ether_type {
+
+        match unsafe { (*hdr).ether_type } {
             EtherType::Ipv4 => self.handle_egress_v4(),
             EtherType::Ipv6 => self.handle_egress_v6(),
             _ => TC_ACT_PIPE,
         }
     }
     pub fn handle_as_xdp(&self) -> u32 {
-        let ethhdr: EthHdr = unsafe {
-            let res = self.ptr_at_u(0);
-            match res {
+        let hdr = {
+            match self.ptr_at_u::<EthHdr>(0) {
+                Ok(ptr) => ptr,
                 Err(_) => return xdp_action::XDP_DROP,
-                Ok(t) => *t,
             }
         };
 
-        match ethhdr.ether_type {
+        match unsafe { (*hdr).ether_type } {
             EtherType::Ipv4 => self.handle_ingress_v4(),
             EtherType::Ipv6 => self.handle_ingress_v6(),
             _ => xdp_action::XDP_PASS,

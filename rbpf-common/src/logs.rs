@@ -11,7 +11,6 @@ pub struct LogMessage {
     pub input: bool,
     pub output: bool,
     pub v4: bool,
-    pub v6: bool,
     pub tcp: bool,
     pub udp: bool,
 

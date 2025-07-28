@@ -103,7 +103,7 @@ impl ElasticLogs {
             "input": log.msg.input,
             "output": log.msg.output,
             "v4": log.msg.v4,
-            "v6": log.msg.v6,
+            "v6": !log.msg.v4,
             "tcp": log.msg.tcp,
             "udp": log.msg.udp,
 

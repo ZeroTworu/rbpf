@@ -17,7 +17,6 @@ pub struct ParseResult {
     pub output: bool,
 
     pub v4: bool,
-    pub v6: bool,
     pub ifindex: u32,
 }
 
@@ -113,7 +112,7 @@ impl ParseResult {
             }
         }
 
-        if self.v6 && rule.v6 {
+        if !self.v4 && rule.v6 {
             if self.input
                 && self.is_source_v6_addr(rule)
                 && self.is_source_port(rule)
@@ -140,7 +139,7 @@ impl ParseResult {
         if self.v4 && !rule.v4 {
             return true;
         }
-        if self.v6 && !rule.v6 {
+        if !self.v4 && !rule.v6 {
             return true;
         }
         if self.input && !rule.input {

@@ -164,13 +164,13 @@ impl WLogMessage {
     }
 
     pub async fn log(&self, resolve_ptr_records: bool) -> String {
-        let s_ip = if self.msg.v6 {
+        let s_ip = if !self.msg.v4 {
             self.src_v6().to_string()
         } else {
             self.src_v4().to_string()
         };
 
-        let d_ip = if self.msg.v6 {
+        let d_ip = if self.msg.v4 {
             self.dest_v6().to_string()
         } else {
             self.dest_v4().to_string()
