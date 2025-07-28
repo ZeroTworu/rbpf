@@ -90,7 +90,7 @@ pub async fn reload_rules(ebpf: &mut Ebpf) -> anyhow::Result<()> {
     let mut rules_input: HashMap<_, u32, Rule> = HashMap::try_from(ebpf.map_mut(RULES).unwrap())?;
 
     clear_hashmap(&mut rules_input);
-    make_bpf_maps(ebpf);
+    make_bpf_maps(ebpf).await?;
 
     Ok(())
 }
