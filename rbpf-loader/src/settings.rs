@@ -10,7 +10,6 @@ use yaml_rust2::{Yaml, YamlLoader};
 
 #[derive(Debug, Clone)]
 pub struct Settings {
-    pub resolve_ptr_records: bool,
     pub rules_path: String,
 
     pub control_on: bool,
@@ -61,7 +60,6 @@ pub async fn read_settings(ebpf: &mut Ebpf) -> anyhow::Result<Settings> {
     rules::load_rules_from_dir(&opt.rules).await?;
 
     let settings_struct = Settings {
-        resolve_ptr_records: (&settings[0])["resolve_ptr_records"].as_bool().unwrap(),
         rules_path: opt.rules,
         control_socket_path: control["control_socket_path"].as_str().unwrap().to_string(),
         control_socket_owner: control["control_socket_owner"]

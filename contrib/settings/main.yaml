@@ -5,7 +5,6 @@ interfaces:
   output:
     - "enp5s0"
 #    - "lo"
-resolve_ptr_records: false
 control:
   on:  true
   control_socket_path: "/run/rbpf_control.sock"

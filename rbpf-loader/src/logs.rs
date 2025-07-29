@@ -4,7 +4,6 @@ use crate::ipproto;
 use crate::rules::get_rule_name;
 use crate::settings::Settings;
 use aya::maps::{MapData, RingBuf};
-use core::net::IpAddr;
 use core::str::from_utf8;
 use libc::if_indextoname;
 use libc::{CLOCK_MONOTONIC, clock_gettime, timespec};
@@ -13,28 +12,20 @@ use rbpf_common::logs::logs::{
     ActionType, LogMessageSerialized, ProtocolType, ProtocolVersionType, TrafficType,
 };
 use rbpf_common::logs::{DEBUG, ERROR, INFO, LogMessage, WARN};
-use std::collections::HashMap;
 use std::ffi::CStr;
 use std::mem::MaybeUninit;
 use std::net::{Ipv4Addr, Ipv6Addr};
 use std::os::raw::c_char;
 use std::path::Path;
+use std::sync::Arc;
 use std::sync::mpsc;
-use std::sync::{Arc, LazyLock};
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 use tokio::io::AsyncWriteExt;
 use tokio::io::unix::AsyncFd;
 use tokio::net::UnixListener;
-use tokio::sync::{RwLock, watch};
-use trust_dns_resolver::TokioAsyncResolver;
-use trust_dns_resolver::config::{ResolverConfig, ResolverOpts};
-use trust_dns_resolver::error::ResolveError;
-use trust_dns_resolver::lookup::ReverseLookup;
+use tokio::sync::watch;
 
 pub const LOGS_RING_BUF: &str = "LOGS_RING_BUF";
-
-static DNS_CACHE: LazyLock<Arc<RwLock<HashMap<String, String>>>> =
-    LazyLock::new(|| Arc::new(RwLock::new(HashMap::new())));
 
 #[derive(Debug)]
 pub struct WLogMessage {
@@ -118,36 +109,6 @@ impl WLogMessage {
             }
         }
     }
-    pub async fn resolve_dst_v4(&self) -> String {
-        let store = DNS_CACHE.read().await;
-        let dst_addr = self.dest_v4().to_string();
-
-        match store.get(&dst_addr).cloned() {
-            Some(addr) => addr,
-            None => {
-                let resolver =
-                    TokioAsyncResolver::tokio(ResolverConfig::default(), ResolverOpts::default());
-                let response = resolver.reverse_lookup(IpAddr::from(self.dest_v4())).await;
-                self.resolver_to_str(response, dst_addr).await
-            }
-        }
-    }
-
-    pub async fn resolve_src_v4(&self) -> String {
-        let store = DNS_CACHE.read().await;
-        let str_addr = self.src_v4().to_string();
-
-        match store.get(&str_addr).cloned() {
-            Some(addr) => addr,
-            None => {
-                let resolver =
-                    TokioAsyncResolver::tokio(ResolverConfig::default(), ResolverOpts::default());
-                let response = resolver.reverse_lookup(IpAddr::from(self.src_v4())).await;
-                self.resolver_to_str(response, str_addr).await
-            }
-        }
-    }
-
     pub fn dest_v4(&self) -> Ipv4Addr {
         Ipv4Addr::from(self.msg.destination_addr_v4)
     }
@@ -163,23 +124,17 @@ impl WLogMessage {
         Ipv6Addr::from(src_ip)
     }
 
-    pub async fn log(&self, resolve_ptr_records: bool) -> String {
+    pub async fn log(&self) -> String {
         let s_ip = if !self.msg.v4 {
             self.src_v6().to_string()
         } else {
             self.src_v4().to_string()
         };
 
-        let d_ip = if self.msg.v4 {
+        let d_ip = if !self.msg.v4 {
             self.dest_v6().to_string()
         } else {
             self.dest_v4().to_string()
-        };
-
-        let (src_ptr, dst_ptr) = if resolve_ptr_records {
-            (self.resolve_src_v4().await, self.resolve_dst_v4().await)
-        } else {
-            ("".to_string(), "".to_string())
         };
 
         let proto = format!(
@@ -197,16 +152,14 @@ impl WLogMessage {
 
         let info = if self.msg.input {
             format!(
-                "INPUT: ({}{}) {} {} -> {} {}",
+                "INPUT: ({}{}) {} -> {}",
                 self.iface(),
                 proto,
-                src_ptr,
                 if self.msg.source_port != 0 {
                     format!("{}:{}", s_ip, self.msg.source_port)
                 } else {
                     s_ip.to_string()
                 },
-                dst_ptr,
                 if self.msg.destination_port != 0 {
                     format!("{}:{}", d_ip, self.msg.destination_port)
                 } else {
@@ -215,16 +168,14 @@ impl WLogMessage {
             )
         } else {
             format!(
-                "OUTPUT: ({}{}) {} {} -> {} {}",
+                "OUTPUT: ({}{}) {} -> {}",
                 self.iface(),
                 proto,
-                src_ptr,
                 if self.msg.source_port != 0 {
                     format!("{}:{}", s_ip, self.msg.source_port)
                 } else {
                     s_ip.to_string()
                 },
-                dst_ptr,
                 if self.msg.destination_port != 0 {
                     format!("{}:{}", d_ip, self.msg.destination_port)
                 } else {
@@ -248,26 +199,6 @@ impl WLogMessage {
             )
         } else {
             format!("[{}] {}", &msg, &info)
-        }
-    }
-
-    async fn resolver_to_str(
-        &self,
-        response: Result<ReverseLookup, ResolveError>,
-        key: String,
-    ) -> String {
-        match response {
-            Ok(name) => {
-                let mut store = DNS_CACHE.write().await;
-                let names: Vec<String> = name
-                    .iter()
-                    .map(|name| name.to_utf8())
-                    .collect::<Vec<String>>();
-                let ptr = names.get(0).unwrap().to_string();
-                store.insert(key, ptr.clone());
-                ptr
-            }
-            Err(_) => "".to_string(),
         }
     }
 
@@ -317,10 +248,10 @@ pub async fn log_listener(
                         let msg_wrapper: WLogMessage = WLogMessage { msg };
 
                         match msg_wrapper.msg.level {
-                            DEBUG => debug!("{}", msg_wrapper.log(settings.resolve_ptr_records).await),
-                            INFO => info!("{}", msg_wrapper.log(settings.resolve_ptr_records).await),
-                            WARN => warn!("{}", msg_wrapper.log(settings.resolve_ptr_records).await),
-                            _ => error!("{}", msg_wrapper.log(settings.resolve_ptr_records).await),
+                            DEBUG => debug!("{}", msg_wrapper.log().await),
+                            INFO => info!("{}", msg_wrapper.log().await),
+                            WARN => warn!("{}", msg_wrapper.log().await),
+                            _ => error!("{}", msg_wrapper.log().await),
                         }
 
                         if let Some(elastic) = &elastic {
